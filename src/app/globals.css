@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
+@theme {
+  --color-iron-900: #1C1C1A;
+  --color-iron-700: #2B2A27;
+  --color-iron-500: #54514C;
+  --color-iron-surface-raised: #333230;
+  --color-chalk-100: #F2EFE6;
+  --color-chalk-300: #DAD5C7;
+  --color-text-tertiary: #8B8880;
+  --color-oxide-600: #C1401F;
+  --color-brass-500: #A9822C;
+  --color-moss-600: #4C6B4F;
+  --color-danger: #D14A3E;
+
+  --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
+  --font-body: var(--font-public-sans), -apple-system, "Segoe UI", sans-serif;
+
+  --radius-sm: 6px;
+  --radius-pill: 999px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-base: #1C1C1A;
+  --bg-surface: #2B2A27;
+  --bg-surface-raised: #333230;
+  --border-default: #54514C;
+  --text-primary: #F2EFE6;
+  --text-secondary: #DAD5C7;
+  --text-tertiary: #8B8880;
+  --accent-primary: #C1401F;
+  --accent-primary-ink: #F2EFE6;
+  --accent-secondary: #A9822C;
+  --accent-neutral-positive: #4C6B4F;
+  --danger: #D14A3E;
+  --focus-ring: #F2EFE6;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures for numbers in tables/lists */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Loading-pin style 3px horizontal divider */
+.divider-iron {
+  height: 3px;
+  background-color: var(--border-default);
+  width: 100%;
+  border-radius: 1px;
+}
+
+/* Clean Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Focus styles for WCAG accessibility */
+*:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
