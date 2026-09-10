@@ -13,13 +13,19 @@ export const Header: React.FC = () => {
   const todayFormatted = formatDate(new Date());
 
   const handleLogout = async () => {
+    let successMessage = 'Berhasil logout dari sistem.';
     try {
-      await authService.logout();
+      const res = await authService.logout() as { message?: string; data?: { message?: string } };
+      if (res?.message) {
+        successMessage = res.message;
+      } else if (res?.data?.message) {
+        successMessage = res.data.message;
+      }
     } catch {
       // Ignore network errors on logout
     } finally {
       localStorage.removeItem('gym_access_token');
-      toast.success('Berhasil logout dari sistem.');
+      toast.success(successMessage);
       router.push('/login');
     }
   };

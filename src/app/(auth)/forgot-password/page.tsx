@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Dumbbell, ArrowRight, Mail, KeyRound, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { authService } from '@/services/auth.service';
+import { extractApiError } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function ForgotPasswordPage() {
@@ -14,27 +15,29 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
+  const handleBlur = () => {
+    if (!email.trim()) {
+      toast.error('Email harus diisi.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      toast.error('Silakan masukkan alamat email terdaftar Anda.');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      await authService.forgotPassword({ email });
-      toast.success('Kode OTP reset password telah dikirim ke email Anda.');
+      const res = await authService.forgotPassword({ email: email.trim() });
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Kode OTP reset password telah dikirim ke email Anda.';
+      toast.success(successMsg);
       setIsSubmitted(true);
       setTimeout(() => {
-        router.push(`/reset-password?email=${encodeURIComponent(email)}`);
+        router.push(`/reset-password?email=${encodeURIComponent(email.trim())}`);
       }, 1500);
-    } catch {
-      toast.info(`Simulasi demo: Kode OTP reset password dikirim ke ${email}`);
-      setIsSubmitted(true);
-      setTimeout(() => {
-        router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-      }, 1500);
+    } catch (err: unknown) {
+      const backendMessage = extractApiError(err, 'Gagal mengirim kode OTP reset. Pastikan email terdaftar.');
+      toast.error(backendMessage);
     } finally {
       setIsLoading(false);
     }
@@ -65,17 +68,17 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-[var(--text-secondary)]">Alamat Email Terdaftar</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
-                  required
                   placeholder="nama@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={handleBlur}
                   className="w-full h-12 pl-10 pr-3.5 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
                   autoFocus
                 />

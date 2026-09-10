@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Dumbbell, ArrowRight, Lock, Mail, User, Phone, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { authService } from '@/services/auth.service';
+import { extractApiError } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function RegisterPage() {
@@ -25,22 +26,36 @@ export default function RegisterPage() {
     }
   }, [router]);
 
+  const handleBlur = (field: 'name' | 'email' | 'password') => {
+    if (field === 'name' && !name.trim()) {
+      toast.error('Nama lengkap harus diisi.');
+    } else if (field === 'email' && !email.trim()) {
+      toast.error('Email harus diisi.');
+    } else if (field === 'password' && !password.trim()) {
+      toast.error('Password harus diisi.');
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await authService.register({
-        name,
-        email,
+      const res = await authService.register({
+        name: name.trim(),
+        email: email.trim(),
         phone: phone.trim() || undefined,
         password,
         confirmPassword: password,
       });
-      toast.success('Pendaftaran berhasil! Kode OTP 6-digit telah dikirim ke email Anda.');
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Pendaftaran berhasil. Silakan periksa kode OTP di email Anda.';
+      toast.success(successMsg);
       setIsOtpStep(true);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr.response?.data?.message || 'Gagal mendaftar. Silakan periksa kembali data Anda.');
+      const backendMessage = extractApiError(err, 'Gagal mendaftar. Silakan periksa kembali data Anda.');
+      toast.error(backendMessage);
     } finally {
       setIsLoading(false);
     }
@@ -50,12 +65,16 @@ export default function RegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await authService.verifyEmail({ email, otp: otpCode });
-      toast.success('Email berhasil diverifikasi! Silakan login untuk melanjutkan.');
+      const res = await authService.verifyEmail({ email: email.trim(), otp: otpCode.trim() });
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Email berhasil diverifikasi.';
+      toast.success(successMsg);
       router.push('/login');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr.response?.data?.message || 'Kode OTP tidak valid atau telah kedaluwarsa.');
+      const backendMessage = extractApiError(err, 'Kode OTP tidak valid atau telah kedaluwarsa.');
+      toast.error(backendMessage);
     } finally {
       setIsLoading(false);
     }
@@ -65,8 +84,8 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       const res = await authService.googleAuth({
-        email: email || 'athlete.new@gmail.com',
-        name: name || 'Gym Athlete Google',
+        email: email.trim() || 'athlete.new@gmail.com',
+        name: name.trim() || 'Gym Athlete Google',
         phone: phone.trim() || undefined,
       });
       const token =
@@ -75,11 +94,15 @@ export default function RegisterPage() {
       if (token) {
         localStorage.setItem('gym_access_token', token);
       }
-      toast.success('Pendaftaran Google SSO berhasil! Selamat datang.');
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Pendaftaran Google SSO berhasil.';
+      toast.success(successMsg);
       router.push('/dashboard');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr.response?.data?.message || 'Pendaftaran Google SSO gagal.');
+      const backendMessage = extractApiError(err, 'Pendaftaran Google SSO gagal.');
+      toast.error(backendMessage);
     } finally {
       setIsLoading(false);
     }
@@ -142,17 +165,17 @@ export default function RegisterPage() {
               <div className="border-t border-[var(--border-default)] w-full" />
             </div>
 
-            <form onSubmit={handleRegister} className="space-y-3.5">
+            <form onSubmit={handleRegister} noValidate className="space-y-3.5">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">Nama Lengkap</label>
                 <div className="relative">
                   <User className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    required
                     placeholder="Nama Anda"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    onBlur={() => handleBlur('name')}
                     className="w-full h-12 pl-10 pr-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                   />
                 </div>
@@ -164,17 +187,17 @@ export default function RegisterPage() {
                   <Mail className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
-                    required
                     placeholder="nama@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => handleBlur('email')}
                     className="w-full h-12 pl-10 pr-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--text-secondary)]">Nomor WhatsApp / Telepon</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Nomor WhatsApp / Telepon (Opsional)</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -193,11 +216,10 @@ export default function RegisterPage() {
                   <Lock className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="password"
-                    required
-                    minLength={8}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onBlur={() => handleBlur('password')}
                     className="w-full h-12 pl-10 pr-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
                   />
                 </div>
@@ -210,14 +232,13 @@ export default function RegisterPage() {
             </form>
           </>
         ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <form onSubmit={handleVerifyOtp} noValidate className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-[var(--text-secondary)]">Kode OTP (6 Digit)</label>
               <div className="relative">
                 <ShieldCheck className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  required
                   maxLength={6}
                   placeholder="123456"
                   value={otpCode}

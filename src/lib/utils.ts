@@ -43,3 +43,28 @@ export function formatDate(date: string | Date): string {
     year: 'numeric',
   });
 }
+
+/**
+ * Extract user-friendly error message from backend API response envelopes
+ */
+export function extractApiError(err: unknown, fallbackMessage = 'Terjadi kesalahan pada sistem'): string {
+  const axiosErr = err as {
+    response?: {
+      data?: {
+        message?: string;
+        errors?: Array<{ field?: string; message?: string } | string>;
+        code?: string;
+      };
+    };
+  };
+
+  const data = axiosErr.response?.data;
+  if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+    const firstErr = data.errors[0];
+    if (typeof firstErr === 'string') return firstErr;
+    if (firstErr?.message) return firstErr.message;
+  }
+
+  return data?.message || fallbackMessage;
+}
+
