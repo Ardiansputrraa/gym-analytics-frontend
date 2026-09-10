@@ -29,8 +29,10 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      // Clear token if expired
-      // localStorage.removeItem('gym_access_token');
+      localStorage.removeItem('gym_access_token');
+      if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register') && !window.location.pathname.startsWith('/verify-email') && !window.location.pathname.startsWith('/forgot-password') && !window.location.pathname.startsWith('/reset-password')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   },

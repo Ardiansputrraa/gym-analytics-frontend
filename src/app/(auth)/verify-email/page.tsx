@@ -69,15 +69,12 @@ function VerifyEmailContent() {
 
     setIsLoading(true);
     try {
-      await authService.verifyEmail({ email, code: fullCode });
-      toast.success('Email berhasil diverifikasi! Selamat datang di GYM ANALYTICS.');
-      router.push('/dashboard');
-    } catch {
-      // Prototype simulation flow
-      toast.success('Simulasi verifikasi berhasil! Mengarahkan ke dashboard.');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
+      await authService.verifyEmail({ email, otp: fullCode });
+      toast.success('Email berhasil diverifikasi! Silakan login untuk memulai.');
+      router.push('/login');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosErr.response?.data?.message || 'Kode OTP tidak valid atau telah kedaluwarsa.');
     } finally {
       setIsLoading(false);
     }
@@ -90,9 +87,9 @@ function VerifyEmailContent() {
       await authService.resendOtp({ email, type: 'EMAIL_VERIFICATION' });
       toast.success('Kode OTP baru telah dikirimkan ke email Anda.');
       setCountdown(60);
-    } catch {
-      toast.info('Simulasi demo: Kode OTP baru (6-digit) telah dikirim ke ' + email);
-      setCountdown(60);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosErr.response?.data?.message || 'Gagal mengirim ulang kode OTP. Coba beberapa saat lagi.');
     } finally {
       setIsResending(false);
     }

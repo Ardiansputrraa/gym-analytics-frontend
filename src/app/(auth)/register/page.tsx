@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Dumbbell, ArrowRight, Lock, Mail, User, Phone, ShieldCheck } from 'lucide-react';
@@ -18,16 +18,29 @@ export default function RegisterPage() {
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('gym_access_token') : null;
+    if (token) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await authService.register({ name, email, password });
-      toast.success('Kode OTP 6-digit telah dikirim ke email Anda.');
+      await authService.register({
+        name,
+        email,
+        phone: phone.trim() || undefined,
+        password,
+        confirmPassword: password,
+      });
+      toast.success('Pendaftaran berhasil! Kode OTP 6-digit telah dikirim ke email Anda.');
       setIsOtpStep(true);
-    } catch {
-      toast.info('Simulasi registrasi demo: Melanjutkan ke verifikasi OTP.');
-      setIsOtpStep(true);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosErr.response?.data?.message || 'Gagal mendaftar. Silakan periksa kembali data Anda.');
     } finally {
       setIsLoading(false);
     }
@@ -37,12 +50,36 @@ export default function RegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await authService.verifyEmail({ email, code: otpCode });
-      toast.success('Email berhasil diverifikasi! Silakan login.');
+      await authService.verifyEmail({ email, otp: otpCode });
+      toast.success('Email berhasil diverifikasi! Silakan login untuk melanjutkan.');
       router.push('/login');
-    } catch {
-      toast.success('Verifikasi demo berhasil! Mengarahkan ke dashboard.');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosErr.response?.data?.message || 'Kode OTP tidak valid atau telah kedaluwarsa.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleRegister = async () => {
+    setIsLoading(true);
+    try {
+      const res = await authService.googleAuth({
+        email: email || 'athlete.new@gmail.com',
+        name: name || 'Gym Athlete Google',
+        phone: phone.trim() || undefined,
+      });
+      const token =
+        (res as { data?: { accessToken?: string }; accessToken?: string })?.data
+          ?.accessToken || res?.accessToken;
+      if (token) {
+        localStorage.setItem('gym_access_token', token);
+      }
+      toast.success('Pendaftaran Google SSO berhasil! Selamat datang.');
       router.push('/dashboard');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosErr.response?.data?.message || 'Pendaftaran Google SSO gagal.');
     } finally {
       setIsLoading(false);
     }
@@ -71,14 +108,9 @@ export default function RegisterPage() {
             {/* Google SSO Button */}
             <button
               type="button"
-              onClick={() => {
-                toast.info('Simulasi SSO: Menghubungkan ke Google OAuth...');
-                setTimeout(() => {
-                  toast.success('Pendaftaran Google SSO berhasil! Mengarahkan ke dashboard.');
-                  router.push('/dashboard');
-                }, 1000);
-              }}
-              className="w-full h-12 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] hover:bg-[var(--bg-surface-raised)] hover:border-[var(--text-tertiary)] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-3 transition-colors cursor-pointer shadow-sm"
+              disabled={isLoading}
+              onClick={handleGoogleRegister}
+              className="w-full h-12 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] hover:bg-[var(--bg-surface-raised)] hover:border-[var(--text-tertiary)] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-3 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
             >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
                 <path

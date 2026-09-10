@@ -5,15 +5,23 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Dumbbell, LogOut, Calendar } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { authService } from '@/services/auth.service';
 import { toast } from 'sonner';
 
 export const Header: React.FC = () => {
   const router = useRouter();
   const todayFormatted = formatDate(new Date());
 
-  const handleLogout = () => {
-    toast.success('Berhasil logout dari sistem.');
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem('gym_access_token');
+      toast.success('Berhasil logout dari sistem.');
+      router.push('/login');
+    }
   };
 
   return (
