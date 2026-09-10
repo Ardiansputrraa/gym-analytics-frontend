@@ -5,22 +5,37 @@ export interface MacroDistribution {
 }
 
 export interface CaloriePreviewResult {
+  userId?: string;
+  date?: string;
   bmr: number;
+  activityFactor?: number;
   tdee: number;
-  calorieTarget: number;
-  adjustmentKcal: number;
-  macros: MacroDistribution;
+  fitnessGoal?: string;
+  dietPace?: string;
+  goalAdjustment?: number;
+  targetCalories: number;
+  calorieTarget?: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  waterTargetMl?: number;
+  macros?: MacroDistribution;
 }
 
 export interface DailyCalorieTarget {
-  id: string;
+  id?: string;
   userId: string;
-  targetDate: string;
-  bmrSnapshot: number;
-  tdeeSnapshot: number;
+  date: string;
+  bmr: number;
+  activityFactor: number;
+  tdee: number;
+  fitnessGoal: string;
+  dietPace: string;
+  goalAdjustment: number;
   targetCalories: number;
   proteinGrams: number;
-  fatGrams: number;
   carbsGrams: number;
-  createdAt: string;
+  fatGrams: number;
+  waterTargetMl?: number;
+  createdAt?: string;
 }

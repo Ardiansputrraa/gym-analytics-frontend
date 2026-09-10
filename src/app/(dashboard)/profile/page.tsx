@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/common/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Divider } from '@/components/ui/Divider';
 import { EstimatedTag } from '@/components/ui/EstimatedTag';
 import { Gender, ActivityLevel, FitnessGoal, DietPace } from '@/types/profile.types';
 import { profileService } from '@/services/profile.service';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, extractApiError } from '@/lib/utils';
 import {
   User,
   Mail,
@@ -22,110 +22,410 @@ import {
   ChevronDown,
   ChevronUp,
   Droplets,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function ProfilePage() {
-  // Account state
-  const [fullName, setFullName] = useState<string>('Ardian Pratama');
-  const [email] = useState<string>('ardian@example.com');
-  const [phoneNumber, setPhoneNumber] = useState<string>('+62 812-3456-7890');
-  const [age, setAge] = useState<number>(23);
-  const [gender, setGender] = useState<Gender>('MALE');
-  const [heightCm, setHeightCm] = useState<number>(169);
-  const [weightKg, setWeightKg] = useState<number>(104.1);
+import { useDebounce } from '@/hooks/useDebounce';
+import { calorieService } from '@/services/calorie.service';
+import { CaloriePreviewResult } from '@/types/calorie.types';
 
-  // Optional Struk Body Composition Analyzer Detailed Fields
-  const [showAnalyzerDetails, setShowAnalyzerDetails] = useState<boolean>(true);
-  const [skeletalMuscleKg, setSkeletalMuscleKg] = useState<string>('35.8');
-  const [bodyFatPct, setBodyFatPct] = useState<string>('38.1');
-  const [bodyFatKg, setBodyFatKg] = useState<string>('39.7');
-  const [fatFreeMassKg, setFatFreeMassKg] = useState<string>('64.4');
-  const [waterContentKg, setWaterContentKg] = useState<string>('45.7');
-  const [proteinKg, setProteinKg] = useState<string>('14.9');
-  const [mineralKg, setMineralKg] = useState<string>('3.73');
+export default function ProfilePage() {
+  // Account state (strictly populated from API or user input)
+  const [fullName, setFullName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [age, setAge] = useState<string>('');
+  const [gender, setGender] = useState<Gender>('MALE');
+  const [heightCm, setHeightCm] = useState<string>('');
+  const [weightKg, setWeightKg] = useState<string>('');
+
+  // Optional Struk Body Composition Analyzer Detailed Fields (All in kg)
+  const [showAnalyzerDetails, setShowAnalyzerDetails] = useState<boolean>(false);
+  const [skeletalMuscleKg, setSkeletalMuscleKg] = useState<string>('');
+  const [bodyFatKg, setBodyFatKg] = useState<string>('');
+  const [fatFreeMassKg, setFatFreeMassKg] = useState<string>('');
+  const [waterContentKg, setWaterContentKg] = useState<string>('');
+  const [proteinKg, setProteinKg] = useState<string>('');
+  const [mineralKg, setMineralKg] = useState<string>('');
 
   // Strategy, Calorie & Hydration Engine state
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>('MODERATELY_ACTIVE');
-  const [fitnessGoal, setFitnessGoal] = useState<FitnessGoal>('WEIGHT_LOSS');
+  const [fitnessGoal, setFitnessGoal] = useState<FitnessGoal>('FAT_LOSS');
   const [dietPace, setDietPace] = useState<DietPace>('STANDARD');
-  const [checkInIntervalDays, setCheckInIntervalDays] = useState<number>(30);
+  const [checkInIntervalDays, setCheckInIntervalDays] = useState<string>('30');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isPageLoading, setIsPageLoading] = useState<boolean>(true);
 
-  // Pure client calculation preview (Mifflin-St Jeor based on single source weight)
-  const preview = useMemo(() => {
-    // BMR formula
-    let bmr = 10 * weightKg + 6.25 * heightCm - 5 * age;
-    bmr += gender === 'MALE' ? 5 : -161;
-    bmr = Math.round(bmr);
+  // Backend Calculated Targets (100% computed on backend)
+  const [backendTarget, setBackendTarget] = useState<CaloriePreviewResult | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
 
-    // Multipliers
-    const multipliers: Record<ActivityLevel, number> = {
-      SEDENTARY: 1.2,
-      LIGHTLY_ACTIVE: 1.375,
-      MODERATELY_ACTIVE: 1.55,
-      VERY_ACTIVE: 1.725,
-      EXTRA_ACTIVE: 1.9,
+  // Debounced inputs for live backend calculation to prevent spamming requests
+  const debouncedAge = useDebounce(age, 400);
+  const debouncedGender = useDebounce(gender, 400);
+  const debouncedHeightCm = useDebounce(heightCm, 400);
+  const debouncedWeightKg = useDebounce(weightKg, 400);
+  const debouncedFitnessGoal = useDebounce(fitnessGoal, 400);
+  const debouncedDietPace = useDebounce(dietPace, 400);
+
+  // Block minus (-), exponential (e, E), plus (+), and disallow typing invalid symbols
+  const handlePositiveNumberKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    allowDecimal = true
+  ) => {
+    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+      e.preventDefault();
+    }
+    if (!allowDecimal && e.key === '.') {
+      e.preventDefault();
+    }
+  };
+
+  // Sanitize input to guarantee strictly positive numbers (no negative, no 0, no multiple dots)
+  const sanitizePositiveInput = (raw: string, allowDecimal = true): string => {
+    if (!raw) return '';
+    let sanitized = raw.replace(/[^0-9.]/g, '');
+    if (!allowDecimal) {
+      sanitized = sanitized.replace(/\./g, '');
+    } else {
+      const parts = sanitized.split('.');
+      if (parts.length > 2) {
+        sanitized = parts[0] + '.' + parts.slice(1).join('');
+      }
+    }
+    if (sanitized.startsWith('0') && sanitized.length > 1 && sanitized[1] !== '.') {
+      sanitized = sanitized.replace(/^0+/, '');
+    }
+    if (sanitized === '0') {
+      return '';
+    }
+    return sanitized;
+  };
+
+  // Fetch initial profile on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadProfile = async () => {
+      try {
+        const rawRes = await profileService.getMyProfile();
+        if (!isMounted) return;
+
+        // Support direct payload or nested data property
+        const res = ((rawRes as any)?.data !== undefined ? (rawRes as any).data : rawRes) as any;
+
+        // 1. Populate User / Account Information
+        const user = res?.user || res?.profile?.user;
+        if (user) {
+          if (user.name) setFullName(user.name);
+          if (user.email) setEmail(user.email);
+          if (user.phone) setPhoneNumber(user.phone);
+        } else {
+          if (res?.name) setFullName(res.name);
+          if (res?.email) setEmail(res.email);
+          if (res?.phone) setPhoneNumber(res.phone);
+        }
+
+        // 2. Populate Physical Profile Biometrics if present in database
+        const profile = res?.profile || res;
+        if (profile && profile.weightKg !== undefined && profile.weightKg !== null) {
+          if (profile.age !== undefined && profile.age !== null) setAge(String(profile.age));
+          if (profile.gender) setGender(profile.gender);
+          if (profile.heightCm !== undefined && profile.heightCm !== null) setHeightCm(String(profile.heightCm));
+          if (profile.weightKg !== undefined && profile.weightKg !== null) setWeightKg(String(profile.weightKg));
+          if (profile.fitnessGoal) setFitnessGoal(profile.fitnessGoal);
+          if (profile.dietPace) setDietPace(profile.dietPace);
+          if (profile.checkInIntervalDays !== undefined && profile.checkInIntervalDays !== null) {
+            setCheckInIntervalDays(String(profile.checkInIntervalDays));
+          }
+
+          // Populate Struk Body Composition Analyzer Detailed Fields (All in kg)
+          if (profile.skeletalMuscleKg !== undefined && profile.skeletalMuscleKg !== null) {
+            setSkeletalMuscleKg(String(profile.skeletalMuscleKg));
+          }
+          if (profile.bodyFatKg !== undefined && profile.bodyFatKg !== null) {
+            setBodyFatKg(String(profile.bodyFatKg));
+          } else if (profile.bodyFatPct && profile.weightKg) {
+            setBodyFatKg(String(Number(((profile.bodyFatPct / 100) * profile.weightKg).toFixed(1))));
+          }
+          if (profile.fatFreeMassKg !== undefined && profile.fatFreeMassKg !== null) {
+            setFatFreeMassKg(String(profile.fatFreeMassKg));
+          }
+          if (profile.waterContentKg !== undefined && profile.waterContentKg !== null) {
+            setWaterContentKg(String(profile.waterContentKg));
+          }
+          if (profile.proteinKg !== undefined && profile.proteinKg !== null) {
+            setProteinKg(String(profile.proteinKg));
+          }
+          if (profile.mineralKg !== undefined && profile.mineralKg !== null) {
+            setMineralKg(String(profile.mineralKg));
+          }
+
+          if (
+            profile.skeletalMuscleKg ||
+            profile.bodyFatKg ||
+            profile.fatFreeMassKg ||
+            profile.waterContentKg ||
+            profile.proteinKg ||
+            profile.mineralKg
+          ) {
+            setShowAnalyzerDetails(true);
+          }
+
+          // Fetch active target from backend
+          try {
+            const activeTarget = await calorieService.getTodayTarget();
+            if (isMounted && activeTarget) {
+              setBackendTarget(activeTarget);
+            }
+          } catch {
+            // Silently fallback to calculatePreview
+          }
+        }
+      } catch (err: unknown) {
+        toast.error(extractApiError(err, 'Gagal memuat profil'));
+      } finally {
+        if (isMounted) setIsPageLoading(false);
+      }
     };
-    const tdee = Math.round(bmr * multipliers[activityLevel]);
 
-    // Pace adjustment
-    let adjustment = 0;
-    if (fitnessGoal === 'WEIGHT_LOSS') {
-      adjustment = dietPace === 'RELAXED' ? -250 : dietPace === 'STANDARD' ? -500 : -750;
-    } else if (fitnessGoal === 'MUSCLE_GAIN') {
-      adjustment = dietPace === 'RELAXED' ? 200 : dietPace === 'STANDARD' ? 350 : 500;
+    loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Request all calculations (BMR, TDEE, Calorie, Macros, Water) purely from backend API with debounced values
+  useEffect(() => {
+    const numWeight = parseFloat(String(debouncedWeightKg));
+    const numHeight = parseFloat(String(debouncedHeightCm));
+    const numAge = parseInt(String(debouncedAge), 10);
+
+    const hasValidBiometrics =
+      !isNaN(numWeight) &&
+      numWeight > 0 &&
+      !isNaN(numHeight) &&
+      numHeight > 0 &&
+      !isNaN(numAge) &&
+      numAge > 0;
+
+    if (!hasValidBiometrics) {
+      setBackendTarget(null);
+      return;
     }
 
-    const calorieTarget = Math.max(1200, tdee + adjustment);
+    let isSubscribed = true;
+    setIsPreviewLoading(true);
 
-    // Macros: Protein 2.0g/kg, Fat 25%, Carbs rest
-    const proteinGrams = Math.round(weightKg * 2.0);
-    const fatCalories = calorieTarget * 0.25;
-    const fatGrams = Math.round(fatCalories / 9);
-    const proteinCalories = proteinGrams * 4;
-    const carbsCalories = Math.max(0, calorieTarget - (proteinCalories + fatCalories));
-    const carbsGrams = Math.round(carbsCalories / 4);
+    calorieService
+      .calculatePreview({
+        age: numAge,
+        gender: debouncedGender,
+        heightCm: numHeight,
+        weightKg: numWeight,
+        fitnessGoal: debouncedFitnessGoal,
+        dietPace: debouncedDietPace,
+      })
+      .then((previewResult) => {
+        if (isSubscribed && previewResult) {
+          setBackendTarget(previewResult);
+        }
+      })
+      .catch(() => {
+        // Silently ignore preview calculation failure
+      })
+      .finally(() => {
+        if (isSubscribed) {
+          setIsPreviewLoading(false);
+        }
+      });
 
-    // Automated Hydration Target (35 ml per kg body weight rounded to nearest 50ml)
-    const recommendedWaterMl = Math.round((weightKg * 35) / 50) * 50;
-
-    return {
-      bmr,
-      tdee,
-      calorieTarget,
-      adjustment,
-      recommendedWaterMl,
-      macros: {
-        proteinGrams,
-        fatGrams,
-        carbsGrams,
-      },
+    return () => {
+      isSubscribed = false;
     };
-  }, [age, gender, heightCm, weightKg, activityLevel, fitnessGoal, dietPace]);
+  }, [debouncedAge, debouncedGender, debouncedHeightCm, debouncedWeightKg, debouncedFitnessGoal, debouncedDietPace]);
+
+  // Field-transition validations
+  const handleBlurFullName = () => {
+    if (!fullName.trim()) {
+      toast.error('Nama lengkap harus diisi.');
+    }
+  };
+
+  const handleBlurPhone = () => {
+    if (phoneNumber.trim() && !/^08\d{8,11}$/.test(phoneNumber.trim())) {
+      toast.error('Nomor telepon harus diawali 08 (10-13 digit angka).');
+    }
+  };
+
+  const handleBlurAge = () => {
+    const num = parseInt(String(age), 10);
+    if (age !== '' && (isNaN(num) || num < 10 || num > 120)) {
+      toast.error('Usia harus diisi angka positif antara 10 hingga 120 tahun.');
+    }
+  };
+
+  const handleBlurHeight = () => {
+    const num = parseFloat(String(heightCm));
+    if (heightCm !== '' && (isNaN(num) || num < 50 || num > 300)) {
+      toast.error('Tinggi badan harus diisi angka positif antara 50 hingga 300 cm.');
+    }
+  };
+
+  const handleBlurWeight = () => {
+    const num = parseFloat(String(weightKg));
+    if (weightKg !== '' && (isNaN(num) || num < 20 || num > 500)) {
+      toast.error('Berat badan harus diisi angka positif antara 20 hingga 500 kg.');
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fullName.trim()) {
+      toast.error('Nama lengkap harus diisi.');
+      return;
+    }
+    const numAge = parseInt(String(age), 10);
+    const numHeight = parseFloat(String(heightCm));
+    const numWeight = parseFloat(String(weightKg));
+
+    if (!numAge || isNaN(numAge) || numAge < 10 || numAge > 120) {
+      toast.error('Usia harus diisi angka positif antara 10 hingga 120 tahun.');
+      return;
+    }
+    if (!numHeight || isNaN(numHeight) || numHeight < 50 || numHeight > 300) {
+      toast.error('Tinggi badan harus diisi angka positif antara 50 hingga 300 cm.');
+      return;
+    }
+    if (!numWeight || isNaN(numWeight) || numWeight < 20 || numWeight > 500) {
+      toast.error('Berat badan harus diisi angka positif antara 20 hingga 500 kg.');
+      return;
+    }
+
+    const parseOptionalFloat = (val: string): number | null => {
+      if (!val || val.trim() === '') return null;
+      const parsed = parseFloat(val);
+      return isNaN(parsed) ? null : parsed;
+    };
+
+    const numSkeletalMuscleKg = parseOptionalFloat(skeletalMuscleKg);
+    const numBodyFatKg = parseOptionalFloat(bodyFatKg);
+    const numFatFreeMassKg = parseOptionalFloat(fatFreeMassKg);
+    const numWaterContentKg = parseOptionalFloat(waterContentKg);
+    const numProteinKg = parseOptionalFloat(proteinKg);
+    const numMineralKg = parseOptionalFloat(mineralKg);
+
+    if (numSkeletalMuscleKg !== null && (numSkeletalMuscleKg < 0.1 || numSkeletalMuscleKg > 300)) {
+      toast.error('Skeletal Muscle harus bernilai antara 0.1 hingga 300 kg.');
+      return;
+    }
+    if (numBodyFatKg !== null && (numBodyFatKg < 0.1 || numBodyFatKg > 300)) {
+      toast.error('Body Fat harus bernilai antara 0.1 hingga 300 kg.');
+      return;
+    }
+    if (numFatFreeMassKg !== null && (numFatFreeMassKg < 0.1 || numFatFreeMassKg > 300)) {
+      toast.error('Massa Bebas Lemak harus bernilai antara 0.1 hingga 300 kg.');
+      return;
+    }
+    if (numWaterContentKg !== null && (numWaterContentKg < 0.1 || numWaterContentKg > 300)) {
+      toast.error('Kandungan Air harus bernilai antara 0.1 hingga 300 kg.');
+      return;
+    }
+    if (numProteinKg !== null && (numProteinKg < 0.1 || numProteinKg > 100)) {
+      toast.error('Protein harus bernilai antara 0.1 hingga 100 kg.');
+      return;
+    }
+    if (numMineralKg !== null && (numMineralKg < 0.1 || numMineralKg > 50)) {
+      toast.error('Mineral harus bernilai antara 0.1 hingga 50 kg.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await profileService.upsertProfile({
-        age,
+      const rawRes = await profileService.upsertProfile({
+        name: fullName.trim() || undefined,
+        phone: phoneNumber.trim() ? phoneNumber.trim() : null,
+        age: numAge,
         gender,
-        heightCm,
-        weightKg,
-        activityLevel,
+        heightCm: numHeight,
+        weightKg: numWeight,
         fitnessGoal,
         dietPace,
-        checkInIntervalDays,
-        waterTargetMl: preview.recommendedWaterMl,
+        checkInIntervalDays: Number(checkInIntervalDays) || 30,
+        waterTargetMl: backendTarget?.waterTargetMl,
+        skeletalMuscleKg: numSkeletalMuscleKg,
+        bodyFatKg: numBodyFatKg,
+        fatFreeMassKg: numFatFreeMassKg,
+        waterContentKg: numWaterContentKg,
+        proteinKg: numProteinKg,
+        mineralKg: numMineralKg,
       });
-      toast.success('Profil fisik, target kalori, & target hidrasi air otomatis berhasil disimpan!');
-    } catch {
-      toast.info('Simulasi demo: Seluruh data fisik, target kalori & target hidrasi air telah diperbarui.');
+
+      const res = ((rawRes as any)?.data !== undefined ? (rawRes as any).data : rawRes) as any;
+
+      if (res?.user) {
+        if (res.user.name) setFullName(res.user.name);
+        if (res.user.email) setEmail(res.user.email);
+        if (res.user.phone) setPhoneNumber(res.user.phone);
+      }
+      if (res?.profile) {
+        if (res.profile.age !== undefined && res.profile.age !== null) setAge(String(res.profile.age));
+        if (res.profile.gender) setGender(res.profile.gender);
+        if (res.profile.heightCm !== undefined && res.profile.heightCm !== null) setHeightCm(String(res.profile.heightCm));
+        if (res.profile.weightKg !== undefined && res.profile.weightKg !== null) setWeightKg(String(res.profile.weightKg));
+        if (res.profile.fitnessGoal) setFitnessGoal(res.profile.fitnessGoal);
+        if (res.profile.dietPace) setDietPace(res.profile.dietPace);
+        if (res.profile.checkInIntervalDays !== undefined && res.profile.checkInIntervalDays !== null) {
+          setCheckInIntervalDays(String(res.profile.checkInIntervalDays));
+        }
+        if (res.profile.skeletalMuscleKg !== undefined && res.profile.skeletalMuscleKg !== null) {
+          setSkeletalMuscleKg(String(res.profile.skeletalMuscleKg));
+        }
+        if (res.profile.bodyFatKg !== undefined && res.profile.bodyFatKg !== null) {
+          setBodyFatKg(String(res.profile.bodyFatKg));
+        }
+        if (res.profile.fatFreeMassKg !== undefined && res.profile.fatFreeMassKg !== null) {
+          setFatFreeMassKg(String(res.profile.fatFreeMassKg));
+        }
+        if (res.profile.waterContentKg !== undefined && res.profile.waterContentKg !== null) {
+          setWaterContentKg(String(res.profile.waterContentKg));
+        }
+        if (res.profile.proteinKg !== undefined && res.profile.proteinKg !== null) {
+          setProteinKg(String(res.profile.proteinKg));
+        }
+        if (res.profile.mineralKg !== undefined && res.profile.mineralKg !== null) {
+          setMineralKg(String(res.profile.mineralKg));
+        }
+      }
+
+      // Fetch freshly computed active daily target from backend
+      try {
+        const activeTarget = await calorieService.getTodayTarget();
+        if (activeTarget) {
+          setBackendTarget(activeTarget);
+        }
+      } catch {
+        // Silently retain current preview
+      }
+
+      const successMessage = res?.message || (rawRes as any)?.message || 'Profil fisik dan target kalori harian berhasil disimpan.';
+      toast.success(successMessage);
+    } catch (err: unknown) {
+      toast.error(extractApiError(err, 'Gagal menyimpan profil'));
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (isPageLoading) {
+    return (
+      <AppShell>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-primary)]" />
+          <p className="text-sm text-[var(--text-secondary)]">Memuat profil pengguna...</p>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -143,7 +443,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2 cols): Account, Biometrics & Strategy Form */}
         <div className="lg:col-span-2 space-y-6">
-          <form onSubmit={handleSave} className="space-y-6">
+          <form onSubmit={handleSave} noValidate className="space-y-6">
             {/* Section 1: Akun & Informasi Kontak */}
             <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 md:p-6 space-y-4">
               <h3 className="text-base font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-2">
@@ -160,6 +460,7 @@ export default function ProfilePage() {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    onBlur={handleBlurFullName}
                     className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-semibold text-[var(--text-primary)] focus:outline-none"
                   />
                 </div>
@@ -194,7 +495,8 @@ export default function ProfilePage() {
                       type="tel"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+62 812-xxxx-xxxx"
+                      onBlur={handleBlurPhone}
+                      placeholder="0812xxxxxxxx"
                       className="w-full h-12 pl-10 pr-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-semibold tabular-nums text-[var(--text-primary)] focus:outline-none"
                     />
                   </div>
@@ -254,10 +556,14 @@ export default function ProfilePage() {
                   <input
                     type="number"
                     step="0.1"
+                    min="0.1"
                     required
+                    placeholder="Contoh: 70"
                     value={weightKg}
-                    onChange={(e) => setWeightKg(Number(e.target.value))}
-                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-base font-bold tabular-nums text-[var(--text-primary)] focus:outline-none font-[var(--font-display)]"
+                    onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                    onChange={(e) => setWeightKg(sanitizePositiveInput(e.target.value, true))}
+                    onBlur={handleBlurWeight}
+                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-base font-bold tabular-nums text-[var(--text-primary)] focus:outline-none font-[var(--font-display)] placeholder:font-normal placeholder:text-xs placeholder:text-[var(--text-tertiary)]"
                   />
                 </div>
 
@@ -268,10 +574,14 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="number"
+                    min="1"
                     required
+                    placeholder="Contoh: 170"
                     value={heightCm}
-                    onChange={(e) => setHeightCm(Number(e.target.value))}
-                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-semibold tabular-nums focus:outline-none"
+                    onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                    onChange={(e) => setHeightCm(sanitizePositiveInput(e.target.value, true))}
+                    onBlur={handleBlurHeight}
+                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-xs placeholder:text-[var(--text-tertiary)]"
                   />
                 </div>
 
@@ -282,10 +592,14 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="number"
+                    min="1"
                     required
+                    placeholder="Contoh: 25"
                     value={age}
-                    onChange={(e) => setAge(Number(e.target.value))}
-                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-semibold tabular-nums focus:outline-none"
+                    onKeyDown={(e) => handlePositiveNumberKeyDown(e, false)}
+                    onChange={(e) => setAge(sanitizePositiveInput(e.target.value, false))}
+                    onBlur={handleBlurAge}
+                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-xs placeholder:text-[var(--text-tertiary)]"
                   />
                 </div>
               </div>
@@ -306,7 +620,7 @@ export default function ProfilePage() {
                         Rincian Elemen Struk Body Composition Analyzer (Opsional)
                       </span>
                       <span className="text-[11px] text-[var(--text-secondary)] block">
-                        Salin nilai SMM, Body Fat %, Mineral & Air dari struk mesin gym (InBody / Tanita).
+                        Salin nilai SMM, Body Fat, Mineral & Air dari struk mesin gym (InBody / Tanita) dalam kg.
                       </span>
                     </div>
                   </div>
@@ -318,7 +632,7 @@ export default function ProfilePage() {
                 </button>
 
                 {showAnalyzerDetails && (
-                  <div className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)]/60 grid grid-cols-2 sm:grid-cols-4 gap-3.5 animate-in fade-in">
+                  <div className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)]/60 grid grid-cols-2 sm:grid-cols-3 gap-3.5 animate-in fade-in">
                     <div className="space-y-1">
                       <label className="text-[11px] font-medium text-[var(--text-secondary)]">
                         Skeletal Muscle (SMM kg)
@@ -326,52 +640,47 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         step="0.1"
-                        placeholder="35.8"
+                        min="0.1"
+                        max="300"
+                        placeholder="Maks 300 kg"
                         value={skeletalMuscleKg}
-                        onChange={(e) => setSkeletalMuscleKg(e.target.value)}
-                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none"
+                        onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                        onChange={(e) => setSkeletalMuscleKg(sanitizePositiveInput(e.target.value, true))}
+                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-[10px] placeholder:text-[var(--text-tertiary)]"
                       />
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[11px] font-medium text-[var(--text-secondary)]">
-                        Body Fat (%)
+                        Body Fat (kg)
                       </label>
                       <input
                         type="number"
                         step="0.1"
-                        placeholder="38.1"
-                        value={bodyFatPct}
-                        onChange={(e) => setBodyFatPct(e.target.value)}
-                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-medium text-[var(--text-secondary)]">
-                        Massa Lemak (kg)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="39.7"
+                        min="0.1"
+                        max="300"
+                        placeholder="Maks 300 kg"
                         value={bodyFatKg}
-                        onChange={(e) => setBodyFatKg(e.target.value)}
-                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none"
+                        onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                        onChange={(e) => setBodyFatKg(sanitizePositiveInput(e.target.value, true))}
+                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-[10px] placeholder:text-[var(--text-tertiary)]"
                       />
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[11px] font-medium text-[var(--text-secondary)]">
-                        Bebas Lemak (kg)
+                        Bebas Lemak (FFM kg)
                       </label>
                       <input
                         type="number"
                         step="0.1"
-                        placeholder="64.4"
+                        min="0.1"
+                        max="300"
+                        placeholder="Maks 300 kg"
                         value={fatFreeMassKg}
-                        onChange={(e) => setFatFreeMassKg(e.target.value)}
-                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none"
+                        onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                        onChange={(e) => setFatFreeMassKg(sanitizePositiveInput(e.target.value, true))}
+                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-[10px] placeholder:text-[var(--text-tertiary)]"
                       />
                     </div>
 
@@ -382,10 +691,13 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         step="0.1"
-                        placeholder="45.7"
+                        min="0.1"
+                        max="300"
+                        placeholder="Maks 300 kg"
                         value={waterContentKg}
-                        onChange={(e) => setWaterContentKg(e.target.value)}
-                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none"
+                        onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                        onChange={(e) => setWaterContentKg(sanitizePositiveInput(e.target.value, true))}
+                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-[10px] placeholder:text-[var(--text-tertiary)]"
                       />
                     </div>
 
@@ -396,10 +708,13 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         step="0.1"
-                        placeholder="14.9"
+                        min="0.1"
+                        max="100"
+                        placeholder="Maks 100 kg"
                         value={proteinKg}
-                        onChange={(e) => setProteinKg(e.target.value)}
-                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none"
+                        onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                        onChange={(e) => setProteinKg(sanitizePositiveInput(e.target.value, true))}
+                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-[10px] placeholder:text-[var(--text-tertiary)]"
                       />
                     </div>
 
@@ -409,11 +724,14 @@ export default function ProfilePage() {
                       </label>
                       <input
                         type="number"
-                        step="0.01"
-                        placeholder="3.73"
+                        step="0.1"
+                        min="0.1"
+                        max="50"
+                        placeholder="Maks 50 kg"
                         value={mineralKg}
-                        onChange={(e) => setMineralKg(e.target.value)}
-                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none"
+                        onKeyDown={(e) => handlePositiveNumberKeyDown(e, true)}
+                        onChange={(e) => setMineralKg(sanitizePositiveInput(e.target.value, true))}
+                        className="w-full h-10 px-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs font-semibold tabular-nums focus:outline-none placeholder:font-normal placeholder:text-[10px] placeholder:text-[var(--text-tertiary)]"
                       />
                     </div>
                   </div>
@@ -428,35 +746,54 @@ export default function ProfilePage() {
                 3. Strategi Kebugaran & Intensitas Diet
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Activity Level */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Tingkat Aktivitas</label>
-                  <select
-                    value={activityLevel}
-                    onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}
-                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-medium focus:outline-none"
+              {/* Fitness Goal */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[var(--text-secondary)]">Target Kebugaran</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setFitnessGoal('FAT_LOSS')}
+                    className={`p-3 rounded-[6px] border text-left transition-colors cursor-pointer ${
+                      fitnessGoal === 'FAT_LOSS'
+                        ? 'border-[var(--accent-primary)] bg-[var(--bg-base)]'
+                        : 'border-[var(--border-default)] bg-[var(--bg-base)]/40 hover:border-[var(--text-tertiary)]'
+                    }`}
                   >
-                    <option value="SEDENTARY">Sedentary (Pekerja Meja / Minim Gerak)</option>
-                    <option value="LIGHTLY_ACTIVE">Light Active (Latihan 1-3 hari/minggu)</option>
-                    <option value="MODERATELY_ACTIVE">Moderately Active (Latihan 3-5 hari/minggu)</option>
-                    <option value="VERY_ACTIVE">Very Active (Latihan 6-7 hari/minggu)</option>
-                    <option value="EXTRA_ACTIVE">Extra Active (2x sehari / Fisik Berat)</option>
-                  </select>
-                </div>
+                    <span className="text-xs font-bold block text-[var(--text-primary)]">Fat Loss</span>
+                    <span className="text-[11px] text-[var(--text-secondary)] mt-0.5 block">
+                      Defisit kalori & pembakaran lemak
+                    </span>
+                  </button>
 
-                {/* Fitness Goal */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-secondary)]">Target Kebugaran</label>
-                  <select
-                    value={fitnessGoal}
-                    onChange={(e) => setFitnessGoal(e.target.value as FitnessGoal)}
-                    className="w-full h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-medium focus:outline-none"
+                  <button
+                    type="button"
+                    onClick={() => setFitnessGoal('MAINTENANCE')}
+                    className={`p-3 rounded-[6px] border text-left transition-colors cursor-pointer ${
+                      fitnessGoal === 'MAINTENANCE'
+                        ? 'border-[var(--accent-primary)] bg-[var(--bg-base)]'
+                        : 'border-[var(--border-default)] bg-[var(--bg-base)]/40 hover:border-[var(--text-tertiary)]'
+                    }`}
                   >
-                    <option value="WEIGHT_LOSS">Weight Loss (Fat Loss / Defisit Kalori)</option>
-                    <option value="MAINTENANCE">Maintenance (Pertahankan Berat)</option>
-                    <option value="MUSCLE_GAIN">Muscle Gain (Hypertrophy / Surplus)</option>
-                  </select>
+                    <span className="text-xs font-bold block text-[var(--text-primary)]">Maintenance</span>
+                    <span className="text-[11px] text-[var(--text-secondary)] mt-0.5 block">
+                      Pertahankan massa & komposisi
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFitnessGoal('MUSCLE_GAIN')}
+                    className={`p-3 rounded-[6px] border text-left transition-colors cursor-pointer ${
+                      fitnessGoal === 'MUSCLE_GAIN'
+                        ? 'border-[var(--accent-primary)] bg-[var(--bg-base)]'
+                        : 'border-[var(--border-default)] bg-[var(--bg-base)]/40 hover:border-[var(--text-tertiary)]'
+                    }`}
+                  >
+                    <span className="text-xs font-bold block text-[var(--text-primary)]">Muscle Gain</span>
+                    <span className="text-[11px] text-[var(--text-secondary)] mt-0.5 block">
+                      Surplus kalori & hipertrofi otot
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -521,8 +858,10 @@ export default function ProfilePage() {
                 </label>
                 <input
                   type="number"
+                  min="1"
                   value={checkInIntervalDays}
-                  onChange={(e) => setCheckInIntervalDays(Number(e.target.value))}
+                  onKeyDown={(e) => handlePositiveNumberKeyDown(e, false)}
+                  onChange={(e) => setCheckInIntervalDays(sanitizePositiveInput(e.target.value, false))}
                   className="w-full sm:w-48 h-12 px-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm font-semibold tabular-nums focus:outline-none"
                 />
                 <span className="text-[11px] text-[var(--text-tertiary)] block mt-1">
@@ -538,7 +877,7 @@ export default function ProfilePage() {
           </form>
         </div>
 
-        {/* Right Column (1 col): Live Deterministic Simulator Card */}
+        {/* Right Column (1 col): Live Deterministic Simulator Card (100% computed on backend) */}
         <div className="space-y-6">
           <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -550,24 +889,33 @@ export default function ProfilePage() {
             </div>
 
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Formula Mifflin-St Jeor & estimasi hidrasi optimal harian berdasarkan input berat terkini ({weightKg} kg).
+              {backendTarget
+                ? `Formula Mifflin-St Jeor & estimasi hidrasi optimal harian berdasarkan input berat terkini (${weightKg} kg).`
+                : 'Lengkapi berat badan, tinggi badan, dan usia untuk melihat kalkulasi target kalori & hidrasi dari server.'}
             </p>
 
             <Divider />
 
             {/* Target Kalori Hero */}
-            <div className="p-4 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] text-center space-y-1">
+            <div className="p-4 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] text-center space-y-1 relative">
+              {isPreviewLoading && (
+                <div className="absolute top-2 right-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--text-tertiary)]" />
+                </div>
+              )}
               <span className="text-xs text-[var(--text-secondary)] font-medium">Target Kalori Harian Aktif</span>
               <div className="text-3xl md:text-4xl font-bold font-[var(--font-display)] tabular-nums text-[var(--accent-primary)]">
-                {formatNumber(preview.calorieTarget)}
+                {backendTarget ? formatNumber(backendTarget.targetCalories) : '-'}
                 <span className="text-xs font-normal text-[var(--text-secondary)] ml-1.5">kkal/hari</span>
               </div>
               <span className="text-[11px] text-[var(--text-tertiary)] block">
-                {preview.adjustment < 0
-                  ? `Defisit ${Math.abs(preview.adjustment)} kkal dari TDEE`
-                  : preview.adjustment > 0
-                    ? `Surplus ${preview.adjustment} kkal dari TDEE`
-                    : 'Maintenance (Setara TDEE)'}
+                {backendTarget
+                  ? (backendTarget.goalAdjustment ?? 0) < 0
+                    ? `Defisit ${Math.abs(backendTarget.goalAdjustment ?? 0)} kkal dari TDEE`
+                    : (backendTarget.goalAdjustment ?? 0) > 0
+                      ? `Surplus ${backendTarget.goalAdjustment} kkal dari TDEE`
+                      : 'Maintenance (Setara TDEE)'
+                  : 'Menunggu input parameter fisik'}
               </span>
             </div>
 
@@ -584,11 +932,13 @@ export default function ProfilePage() {
               </div>
               <div className="flex items-baseline justify-between">
                 <div className="text-2xl md:text-3xl font-bold font-[var(--font-display)] tabular-nums text-[#4CD6DE]">
-                  {formatNumber(preview.recommendedWaterMl)}
+                  {backendTarget && backendTarget.waterTargetMl ? formatNumber(backendTarget.waterTargetMl) : '-'}
                   <span className="text-xs font-normal text-[var(--text-secondary)] ml-1.5">ml/hari</span>
                 </div>
                 <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                  ≈ {(preview.recommendedWaterMl / 1000).toFixed(2)} Liter / hari
+                  {backendTarget && backendTarget.waterTargetMl
+                    ? `≈ ${(backendTarget.waterTargetMl / 1000).toFixed(2)} Liter / hari`
+                    : '≈ - Liter / hari'}
                 </span>
               </div>
               <span className="text-[11px] text-[var(--text-tertiary)] block">
@@ -601,13 +951,13 @@ export default function ProfilePage() {
               <div className="p-3 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)]">
                 <span className="text-[var(--text-tertiary)] block mb-0.5">BMR (Basal)</span>
                 <span className="text-base font-bold tabular-nums text-[var(--text-primary)] font-[var(--font-display)]">
-                  {formatNumber(preview.bmr)} kkal
+                  {backendTarget ? `${formatNumber(Math.round(backendTarget.bmr))} kkal` : '- kkal'}
                 </span>
               </div>
               <div className="p-3 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)]">
                 <span className="text-[var(--text-tertiary)] block mb-0.5">TDEE (Total)</span>
                 <span className="text-base font-bold tabular-nums text-[var(--text-primary)] font-[var(--font-display)]">
-                  {formatNumber(preview.tdee)} kkal
+                  {backendTarget ? `${formatNumber(Math.round(backendTarget.tdee))} kkal` : '- kkal'}
                 </span>
               </div>
             </div>
@@ -623,13 +973,16 @@ export default function ProfilePage() {
               {/* Protein */}
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-[var(--text-secondary)]">Protein (2.0g/kg)</span>
+                  <span className="text-[var(--text-secondary)]">Protein ({fitnessGoal === 'FAT_LOSS' ? '2.0g/kg' : fitnessGoal === 'MUSCLE_GAIN' ? '1.8g/kg' : '1.6g/kg'})</span>
                   <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                    {preview.macros.proteinGrams}g
+                    {backendTarget ? `${backendTarget.proteinGrams}g` : '-'}
                   </span>
                 </div>
                 <div className="h-2 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
-                  <div className="h-full bg-[var(--accent-primary)] rounded-full w-full" />
+                  <div
+                    className="h-full bg-[var(--accent-primary)] rounded-full transition-all duration-300"
+                    style={{ width: backendTarget ? '100%' : '0%' }}
+                  />
                 </div>
               </div>
 
@@ -638,11 +991,14 @@ export default function ProfilePage() {
                 <div className="flex justify-between text-xs">
                   <span className="text-[var(--text-secondary)]">Lemak (25% Total)</span>
                   <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                    {preview.macros.fatGrams}g
+                    {backendTarget ? `${backendTarget.fatGrams}g` : '-'}
                   </span>
                 </div>
                 <div className="h-2 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
-                  <div className="h-full bg-[var(--accent-secondary)] rounded-full w-full" />
+                  <div
+                    className="h-full bg-[var(--accent-secondary)] rounded-full transition-all duration-300"
+                    style={{ width: backendTarget ? '100%' : '0%' }}
+                  />
                 </div>
               </div>
 
@@ -651,11 +1007,14 @@ export default function ProfilePage() {
                 <div className="flex justify-between text-xs">
                   <span className="text-[var(--text-secondary)]">Karbohidrat (Sisa)</span>
                   <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                    {preview.macros.carbsGrams}g
+                    {backendTarget ? `${backendTarget.carbsGrams}g` : '-'}
                   </span>
                 </div>
                 <div className="h-2 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#9B7CF6] rounded-full w-full" />
+                  <div
+                    className="h-full bg-[#9B7CF6] rounded-full transition-all duration-300"
+                    style={{ width: backendTarget ? '100%' : '0%' }}
+                  />
                 </div>
               </div>
 
@@ -667,11 +1026,16 @@ export default function ProfilePage() {
                     Target Air Mineral (35 ml/kg)
                   </span>
                   <span className="font-bold tabular-nums text-[#4CD6DE]">
-                    {formatNumber(preview.recommendedWaterMl)} ml ({(preview.recommendedWaterMl / 1000).toFixed(2)}L)
+                    {backendTarget && backendTarget.waterTargetMl
+                      ? `${formatNumber(backendTarget.waterTargetMl)} ml (${(backendTarget.waterTargetMl / 1000).toFixed(2)}L)`
+                      : '- ml'}
                   </span>
                 </div>
                 <div className="h-2 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#4CD6DE] rounded-full w-full" />
+                  <div
+                    className="h-full bg-[#4CD6DE] rounded-full transition-all duration-300"
+                    style={{ width: backendTarget ? '100%' : '0%' }}
+                  />
                 </div>
               </div>
             </div>
