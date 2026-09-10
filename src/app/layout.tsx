@@ -18,7 +18,7 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Iron Ledger — Gym Analytics & Body Progress Platform',
+  title: 'GYM ANALYTICS — Gym Analytics & Body Progress Platform',
   description:
     'Track workout performance, biometric body composition, nutrition, dynamic calorie targets, and deterministic insights.',
 };

@@ -10,26 +10,26 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading = false, disabled, children, ...props }, ref) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:pointer-events-none disabled:opacity-50 select-none rounded-[6px] cursor-pointer';
+      'inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:pointer-events-none disabled:opacity-50 select-none rounded-[14px] cursor-pointer active:scale-[0.98]';
 
     const variants = {
       primary:
-        'bg-[var(--accent-primary)] text-[var(--accent-primary-ink)] hover:bg-[#A83518] active:bg-[#912D14] font-semibold',
+        'bg-[var(--accent-primary)] text-white hover:bg-gradient-to-r hover:from-[#FF7E36] hover:to-[#FF5A1E] font-semibold shadow-[0_4px_16px_rgba(255,107,44,0.35)]',
       secondary:
-        'border border-[var(--border-default)] bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-surface)] active:bg-[var(--bg-surface-raised)]',
+        'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)] hover:border-[var(--text-secondary)]',
       ghost:
         'bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]',
       destructive:
         'border border-[var(--danger)] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white',
       brass:
-        'bg-[var(--accent-secondary)] text-[var(--bg-base)] hover:bg-[#8F6D24] font-semibold',
+        'bg-gradient-to-r from-[#FFA726] to-[#FF9100] text-[#121316] hover:brightness-110 font-semibold shadow-[0_4px_14px_rgba(255,167,38,0.3)]',
     };
 
     const sizes = {
-      sm: 'h-9 px-3 text-xs',
-      md: 'h-12 px-5 text-sm min-h-[48px]', // Thumb-zone min 48px
-      lg: 'h-14 px-6 text-base min-h-[56px]',
-      icon: 'h-12 w-12 min-h-[48px] min-w-[48px]',
+      sm: 'h-9 px-3.5 text-xs rounded-[10px]',
+      md: 'h-12 px-5 text-sm min-h-[48px] rounded-[14px]', // Thumb-zone min 48px
+      lg: 'h-14 px-6 text-base min-h-[56px] rounded-[16px]',
+      icon: 'h-12 w-12 min-h-[48px] min-w-[48px] rounded-[14px]',
     };
 
     return (

@@ -255,20 +255,20 @@ export default function ActiveWorkoutPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--accent-secondary)]">
-              Live Workout Tracking
+            <span className="text-xs font-semibold text-[var(--accent-secondary)]">
+              Live workout tracking
             </span>
             {isRestTimerRunning ? (
               <span className="px-2 py-0.5 rounded-[4px] bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/40 animate-pulse">
-                ⏳ SEDANG ISTIRAHAT (REST TIMER)
+                ⏳ Sedang istirahat (Rest timer)
               </span>
             ) : isTimerRunning ? (
               <span className="px-2 py-0.5 rounded-[4px] bg-[var(--color-moss-600)]/20 text-[var(--color-moss-600)] text-[10px] font-bold border border-[var(--color-moss-600)]/40 animate-pulse">
-                ● AKTIF MEREKAM (LATIHAN)
+                ● Aktif merekam (Latihan)
               </span>
             ) : (
               <span className="px-2 py-0.5 rounded-[4px] bg-[var(--bg-base)] text-[var(--text-tertiary)] text-[10px] font-semibold border border-[var(--border-default)]">
-                ⏸️ TIMER JEDA
+                ⏸️ Timer jeda
               </span>
             )}
           </div>
@@ -281,7 +281,7 @@ export default function ActiveWorkoutPage() {
                 value={tempName}
                 onChange={(e) => setTempName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                placeholder="Nama Sesi Latihan..."
+                placeholder="Nama sesi latihan..."
                 className="px-3 py-1.5 rounded-[6px] border border-[var(--accent-primary)] bg-[var(--bg-base)] text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)] focus:outline-none"
               />
               <Button variant="primary" size="sm" onClick={handleSaveName}>
@@ -316,7 +316,7 @@ export default function ActiveWorkoutPage() {
             className="border-[var(--accent-primary)]/40 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10"
           >
             <Plus className="w-4 h-4 mr-1.5" />
-            + Tambah Alat / Gerakan
+            + Tambah alat / gerakan
           </Button>
 
           <Button
@@ -328,10 +328,10 @@ export default function ActiveWorkoutPage() {
               activeSession.exercises.length === 0 ||
               totalCompletedSets === 0
             }
-            className="shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check className="w-4 h-4 mr-2" />
-            {activeSession.status === 'COMPLETED' ? 'Sesi Telah Selesai' : 'Selesaikan Sesi'}
+            {activeSession.status === 'COMPLETED' ? 'Sesi telah selesai' : 'Selesaikan sesi'}
           </Button>
         </div>
       </div>
@@ -340,14 +340,14 @@ export default function ActiveWorkoutPage() {
       {/* IF 0 EXERCISES: Show Clean Empty Onboarding Slate */}
       {/* ============================================================ */}
       {activeSession.exercises.length === 0 ? (
-        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-8 md:p-12 text-center space-y-6 shadow-xl my-4">
-          <div className="w-16 h-16 rounded-full bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-center mx-auto text-[var(--accent-primary)] shadow-inner">
+        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-8 md:p-12 text-center space-y-6 my-4">
+          <div className="w-16 h-16 rounded-full bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-center mx-auto text-[var(--accent-primary)]">
             <Dumbbell className="w-8 h-8" />
           </div>
 
           <div className="space-y-2 max-w-md mx-auto">
             <h3 className="text-xl font-bold font-[var(--font-display)] text-[var(--text-primary)]">
-              Pilih Gerakan / Alat untuk Memulai
+              Pilih gerakan / alat untuk memulai
             </h3>
             <p className="text-xs text-[var(--text-secondary)]">
               Sesi latihan ini masih kosong. Silakan pilih alat atau gerakan pertama yang akan Anda lakukan di gym.
@@ -360,10 +360,10 @@ export default function ActiveWorkoutPage() {
               variant="primary"
               size="lg"
               onClick={() => setIsSelectorModalOpen(true)}
-              className="px-6 py-3.5 text-sm shadow-xl"
+              className="px-6 py-3.5 text-sm"
             >
               <Plus className="w-5 h-5 mr-2" />
-              Pilih Gerakan / Alat dari Katalog Gym
+              Pilih gerakan / alat dari katalog gym
             </Button>
           </div>
 
@@ -1085,6 +1085,14 @@ export default function ActiveWorkoutPage() {
             setSelectedExerciseId(newId);
           }
           toast.success(`Gerakan "${ex.name}" (${ex.equipmentName}) berhasil ditambahkan!`);
+        }}
+        onRemoveExercise={(masterExerciseId) => {
+          const target = activeSession.exercises.find(
+            (e) => (e.exerciseId || e.id) === masterExerciseId || e.id === masterExerciseId,
+          );
+          if (target) {
+            handleExerciseDeleted(target.id, target.exerciseName);
+          }
         }}
         alreadySelectedIds={activeSession.exercises.map((e) => e.exerciseId || e.id)}
       />

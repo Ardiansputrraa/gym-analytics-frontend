@@ -30,6 +30,8 @@ import {
   ChevronRight,
   Sparkles,
   HeartPulse,
+  Utensils,
+  PieChart,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -142,29 +144,29 @@ export default function DashboardPage() {
 
       {/* Active Workout Floating Hero (if active session exists with exercises) */}
       {activeSession && activeSession.exercises.length > 0 && (
-        <div className="mb-5 p-4 rounded-[8px] border border-[var(--accent-primary)]/60 bg-[var(--accent-primary)]/10 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-fade-in">
+        <div className="mb-5 p-4 rounded-[6px] border border-[var(--accent-primary)]/60 bg-[var(--accent-primary)]/10 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white font-bold animate-pulse">
               <Activity className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent-primary)]">
-                  Sesi Latihan Sedang Berlangsung
+                <span className="text-xs font-bold text-[var(--accent-primary)]">
+                  Sesi latihan sedang berlangsung
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-base)] border border-[var(--accent-primary)]/40 font-mono text-[var(--accent-primary)]">
                   {formatDuration(elapsedSeconds)}
                 </span>
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {activeSession.name} ({activeSession.exercises.length} Gerakan · {activeSession.exercises.reduce((a, b) => a + b.sets.length, 0)} Set)
+                {activeSession.name} ({activeSession.exercises.length} gerakan · {activeSession.exercises.reduce((a, b) => a + b.sets.length, 0)} set)
               </h3>
             </div>
           </div>
 
           <Link href="/workouts/active">
-            <Button variant="primary" size="sm" className="w-full sm:w-auto shadow-md">
-              Lanjutkan Sesi Workout <ArrowRight className="w-4 h-4 ml-1.5" />
+            <Button variant="primary" size="sm" className="w-full sm:w-auto">
+              Lanjutkan sesi workout <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
           </Link>
         </div>
@@ -175,10 +177,10 @@ export default function DashboardPage() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-[var(--font-display)] tracking-tight text-[var(--text-primary)]">
-              Dashboard Analitik
+              Dashboard analitik
             </h1>
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-[var(--accent-secondary)]">
-              Fase: Hypertrophy & Fat Loss
+              Fase: Hypertrophy & fat loss
             </span>
           </div>
           <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-0.5">
@@ -206,18 +208,18 @@ export default function DashboardPage() {
           </div>
 
           <Link href="/workouts/active" className="w-full sm:w-auto">
-            <Button variant="primary" size="md" className="w-full sm:w-auto shadow-sm text-xs sm:text-sm py-2 sm:py-2.5">
+            <Button variant="primary" size="md" className="w-full sm:w-auto text-xs sm:text-sm py-2 sm:py-2.5">
               <Dumbbell className="w-4 h-4 mr-1.5" />
-              + Mulai Workout
+              + Mulai workout
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* 6 Hero Analytics KPI Cards */}
+      {/* 6 Hero Analytics KPI Cards with Dedicated Protein, Fat, Carbs Tracking */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 my-4">
         <MetricCard
-          label="Volume Latihan (7D)"
+          label="Volume latihan (7D)"
           value="13.280"
           unit="kg"
           trend={{
@@ -226,24 +228,31 @@ export default function DashboardPage() {
             percentage: '+8.0',
             alignment: 'ON_TRACK',
           }}
-          icon={<Activity className="w-4 h-4 text-[var(--color-moss-600)]" />}
+          icon={<Activity className="w-4 h-4 text-[#4CD6DE]" />}
         />
         <MetricCard
-          label="Asupan Kalori"
-          value="1.780"
-          unit="/ 2.588 kkal"
-          subValue="Sisa: 808 kkal (69%)"
-          icon={<Flame className="w-4 h-4 text-[var(--accent-primary)]" />}
+          label="Protein harian"
+          value="142"
+          unit="/ 208g"
+          subValue="Sisa: 66g (68%)"
+          icon={<Utensils className="w-4 h-4 text-[#FF6B2C]" />}
         />
         <MetricCard
-          label="Hidrasi Air Minum"
-          value="2.400"
-          unit="/ 3.500 ml"
-          subValue="Sisa: 1.100 ml (68%)"
-          icon={<Droplets className="w-4 h-4 text-sky-400" />}
+          label="Lemak harian"
+          value="52"
+          unit="/ 72g"
+          subValue="Sisa: 20g (72%)"
+          icon={<PieChart className="w-4 h-4 text-[#FFA726]" />}
         />
         <MetricCard
-          label="Berat Badan"
+          label="Karbohidrat"
+          value="185"
+          unit="/ 276g"
+          subValue="Sisa: 91g (67%)"
+          icon={<Zap className="w-4 h-4 text-[#9B7CF6]" />}
+        />
+        <MetricCard
+          label="Berat badan"
           value="104.1"
           unit="kg"
           trend={{
@@ -255,60 +264,169 @@ export default function DashboardPage() {
           icon={<Scale className="w-4 h-4 text-[var(--accent-secondary)]" />}
         />
         <MetricCard
-          label="Rasio Aktif (Work/Rest)"
+          label="Rasio aktif (work/rest)"
           value="54%"
           unit="Aktif"
           subValue="46% Istirahat (Optimal)"
-          icon={<Clock className="w-4 h-4 text-amber-400" />}
-        />
-        <MetricCard
-          label="Kardio & Kalori"
-          value="75"
-          unit="min"
-          subValue="12.4 km · ~680 kkal"
-          icon={<Zap className="w-4 h-4 text-emerald-400" />}
+          icon={<Clock className="w-4 h-4 text-emerald-400" />}
         />
       </div>
 
-      {/* Dual Progress Bars: Kalori & Hidrasi Air */}
-      <div className="my-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Progres Kalori */}
-        <div className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="flex items-center gap-1.5 text-[var(--text-primary)]">
-              <Flame className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-              Progres Kalori Harian
-            </span>
-            <span className="tabular-nums text-[var(--accent-primary)] font-bold">
-              69% (1.780 / 2.588 kkal)
-            </span>
+      {/* Dual Circular Radial Gauges: Progres Kalori & Hidrasi Air Minum */}
+      <div className="my-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card 1: Circular Radial Gauge - Progres Kalori Harian */}
+        <div className="p-5 rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex flex-col sm:flex-row items-center justify-between gap-5">
+          {/* Left Info */}
+          <div className="space-y-3 flex-1 text-center sm:text-left">
+            <div>
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <div className="p-1.5 rounded-[8px] bg-[#FF6B2C]/15 text-[#FF6B2C]">
+                  <Flame className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                  Progres Kalori Harian
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-center sm:justify-start gap-1.5">
+                <span className="text-2xl sm:text-3xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                  1.780
+                </span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">/ 2.588 kkal</span>
+              </div>
+            </div>
+
+            <div className="space-y-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-default)]/60 pt-2.5">
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[var(--text-tertiary)]">Sisa Kalori:</span>
+                <span className="font-bold text-[#FF6B2C] font-mono">808 kkal</span>
+              </div>
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[var(--text-tertiary)]">Distribusi Makro:</span>
+                <span className="font-mono text-[11px] flex items-center gap-1.5">
+                  <span className="text-[#FF6B2C] font-bold">P: 142g</span>
+                  <span className="text-[#FFA726] font-bold">L: 52g</span>
+                  <span className="text-[#9B7CF6] font-bold">K: 185g</span>
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[var(--text-tertiary)]">Target Defisit:</span>
+                <span className="font-semibold text-white font-mono">-200 kkal (TDEE: 2.788)</span>
+              </div>
+            </div>
           </div>
-          <div className="h-2.5 w-full bg-[var(--bg-base)] rounded-full overflow-hidden border border-[var(--border-default)]">
-            <div className="h-full bg-gradient-to-r from-[#D64317] to-[var(--accent-primary)] rounded-full w-[69%]" />
-          </div>
-          <div className="flex justify-between items-center text-[10px] text-[var(--text-tertiary)] pt-0.5">
-            <span>BMR: 1.940 kkal · TDEE: 2.788 kkal</span>
-            <span className="text-[var(--text-secondary)]">Defisit Target: -200 kkal</span>
+
+          {/* Right Circular Gauge */}
+          <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+              {/* Background Track Arc */}
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                stroke="#262934"
+                strokeWidth="10"
+                fill="transparent"
+              />
+              {/* Active Orange Arc (%69 -> 238.7 * 0.69 = 164.7) */}
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                stroke="#FF6B2C"
+                strokeWidth="10"
+                strokeDasharray="238.7"
+                strokeDashoffset="74"
+                strokeLinecap="round"
+                fill="transparent"
+                className="transition-all duration-700 ease-out"
+              />
+            </svg>
+
+            {/* Center Percentage Badge */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                69%
+              </span>
+              <span className="text-[9px] font-bold text-[#FF6B2C] uppercase tracking-wider">
+                Tercapai
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Progres Air Minum */}
-        <div className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="flex items-center gap-1.5 text-sky-400">
-              <Droplets className="w-3.5 h-3.5 text-sky-400" />
-              Progres Hidrasi Air Minum
-            </span>
-            <span className="tabular-nums text-sky-400 font-bold">
-              68% (2.400 / 3.500 ml)
-            </span>
+        {/* Card 2: Circular Radial Gauge - Progres Hidrasi Air Minum */}
+        <div className="p-5 rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex flex-col sm:flex-row items-center justify-between gap-5">
+          {/* Left Info */}
+          <div className="space-y-3 flex-1 text-center sm:text-left">
+            <div>
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <div className="p-1.5 rounded-[8px] bg-[#4CD6DE]/15 text-[#4CD6DE]">
+                  <Droplets className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                  Progres Hidrasi Air Minum
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-center sm:justify-start gap-1.5">
+                <span className="text-2xl sm:text-3xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                  2.400
+                </span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">/ 3.500 ml</span>
+              </div>
+            </div>
+
+            <div className="space-y-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-default)]/60 pt-2.5">
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[var(--text-tertiary)]">Sisa Target Hidrasi:</span>
+                <span className="font-bold text-[#4CD6DE] font-mono">1.100 ml</span>
+              </div>
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[var(--text-tertiary)]">Setara:</span>
+                <span className="font-semibold text-white font-mono">~3-4 Gelas Air</span>
+              </div>
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-[var(--text-tertiary)]">Standar Rumus:</span>
+                <span className="font-mono text-[var(--text-secondary)]">35 ml × 100 kg</span>
+              </div>
+            </div>
           </div>
-          <div className="h-2.5 w-full bg-[var(--bg-base)] rounded-full overflow-hidden border border-[var(--border-default)]">
-            <div className="h-full bg-gradient-to-r from-sky-600 to-sky-400 rounded-full w-[68%]" />
-          </div>
-          <div className="flex justify-between items-center text-[10px] text-[var(--text-tertiary)] pt-0.5">
-            <span>Rekomendasi: 35 ml × 100 kg</span>
-            <span className="text-sky-400">Sisa 3-4 gelas air</span>
+
+          {/* Right Circular Gauge */}
+          <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+              {/* Background Track Arc */}
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                stroke="#262934"
+                strokeWidth="10"
+                fill="transparent"
+              />
+              {/* Active Cyan Arc (%68 -> 238.7 * 0.68 = 162.3) */}
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                stroke="#4CD6DE"
+                strokeWidth="10"
+                strokeDasharray="238.7"
+                strokeDashoffset="76.4"
+                strokeLinecap="round"
+                fill="transparent"
+                className="transition-all duration-700 ease-out"
+              />
+            </svg>
+
+            {/* Center Percentage Badge */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                68%
+              </span>
+              <span className="text-[9px] font-bold text-[#4CD6DE] uppercase tracking-wider">
+                Terpenuhi
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -380,21 +498,21 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Chart Container Card */}
-        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-5 shadow-xl">
+        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5">
           {/* TAB 1: VOLUME DISTRIBUTION BY MUSCLE GROUP */}
           {analyticsTab === 'VOLUME' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                    Total Volume Beban per Kelompok Otot (7 Hari Terakhir)
+                    Total volume beban per kelompok otot (7 hari terakhir)
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
                     Total volume akumulatif: <strong className="text-[var(--text-primary)]">13.280 kg</strong> · 56 Total Set Terselesaikan
                   </p>
                 </div>
                 <span className="text-[11px] text-[var(--color-moss-600)] font-semibold bg-[var(--color-moss-600)]/10 px-2 py-1 rounded border border-[var(--color-moss-600)]/30">
-                  Keseimbangan Anterior/Posterior: Optimal (52% / 48%)
+                  Keseimbangan anterior/posterior: Optimal (52% / 48%)
                 </span>
               </div>
 
@@ -403,20 +521,24 @@ export default function DashboardPage() {
                 <div className="lg:col-span-2 h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={muscleVolumeData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333330" vertical={false} />
-                      <XAxis dataKey="muscle" stroke="#888880" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888880" fontSize={10} tickLine={false} axisLine={false} />
+                      <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                      <XAxis dataKey="muscle" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                       <Tooltip
+                        cursor={{ fill: 'rgba(255, 255, 255, 0.04)', radius: 8 }}
                         contentStyle={{
-                          backgroundColor: '#181816',
-                          borderColor: '#333330',
-                          borderRadius: '6px',
-                          color: '#F4F4F0',
+                          backgroundColor: '#1E2027',
+                          borderColor: '#2C303B',
+                          borderRadius: '14px',
+                          color: '#FFFFFF',
                           fontSize: '12px',
+                          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                         }}
+                        labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
+                        itemStyle={{ color: '#FFFFFF', fontWeight: '600' }}
                         formatter={(v: unknown) => [`${formatNumber(v as number)} kg`, 'Volume Beban']}
                       />
-                      <Bar dataKey="volume" radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="volume" radius={[8, 8, 0, 0]}>
                         {muscleVolumeData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
@@ -427,20 +549,20 @@ export default function DashboardPage() {
 
                 {/* Breakdown List */}
                 <div className="space-y-2.5 border-t lg:border-t-0 lg:border-l border-[var(--border-default)] pt-4 lg:pt-0 lg:pl-6">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                    Distribusi Persentase Beban
+                  <span className="text-xs font-bold text-[var(--text-tertiary)] block">
+                    Distribusi persentase beban
                   </span>
                   {muscleVolumeData.map((item) => (
                     <div key={item.muscle} className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="text-[var(--text-secondary)] font-medium">{item.muscle}</span>
-                        <span className="font-bold tabular-nums text-[var(--text-primary)]">
+                        <span className="font-bold tabular-nums text-white">
                           {formatNumber(item.volume)} kg ({item.percentage}%)
                         </span>
                       </div>
-                      <div className="h-1.5 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-[var(--bg-base)] rounded-full overflow-hidden border border-[var(--border-default)]/40">
                         <div
-                          className="h-full rounded-full"
+                          className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${item.percentage}%`, backgroundColor: item.fill }}
                         />
                       </div>
@@ -451,37 +573,50 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 2: STRENGTH PROGRESSION & 1RM ESTIMATION */}
+          {/* TAB 2: STRENGTH PROGRESSION & 1RM ESTIMATION (Activity Telemetry Curve Style) */}
           {analyticsTab === 'STRENGTH' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                    Tren Estimasi 1RM (Epley Formula: w × (1 + r/30))
+                    Tren estimasi 1RM (Epley formula: w × (1 + r/30))
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
                     Progressive overload pada 4 gerakan utama selama 4 minggu program latihan.
                   </p>
                 </div>
-                <span className="text-[11px] text-[var(--accent-primary)] font-semibold bg-[var(--accent-primary)]/10 px-2 py-1 rounded border border-[var(--accent-primary)]/30">
-                  Rata-rata Kenaikan Beban: +5.8% / Bulan
+                <span className="text-[11px] text-[var(--accent-primary)] font-semibold bg-[var(--accent-primary)]/10 px-2.5 py-1 rounded-full border border-[var(--accent-primary)]/30">
+                  Rata-rata kenaikan beban: +5.8% / bulan
                 </span>
               </div>
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={strengthProgressionData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333330" vertical={false} />
-                    <XAxis dataKey="week" stroke="#888880" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888880" fontSize={10} tickLine={false} axisLine={false} domain={['dataMin - 5', 'dataMax + 10']} />
+                  <AreaChart data={strengthProgressionData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="glowBench" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FF6B2C" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#FF6B2C" stopOpacity="0.0" />
+                      </linearGradient>
+                      <linearGradient id="glowSquat" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4CD6DE" stopOpacity="0.2" />
+                        <stop offset="100%" stopColor="#4CD6DE" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                    <XAxis dataKey="week" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} domain={['dataMin - 5', 'dataMax + 10']} />
                     <Tooltip
+                      cursor={{ stroke: '#FF6B2C', strokeDasharray: '3 3', strokeWidth: 1.5 }}
                       contentStyle={{
-                        backgroundColor: '#181816',
-                        borderColor: '#333330',
-                        borderRadius: '6px',
-                        color: '#F4F4F0',
+                        backgroundColor: '#1E2027',
+                        borderColor: '#2C303B',
+                        borderRadius: '14px',
+                        color: '#FFFFFF',
                         fontSize: '12px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
+                      labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
                       formatter={(v: unknown, name: unknown) => [
                         `${v} kg`,
                         name === 'benchPress'
@@ -493,30 +628,30 @@ export default function DashboardPage() {
                           : 'Incline DB (1RM)',
                       ]}
                     />
-                    <Line type="monotone" dataKey="benchPress" stroke="#F05A28" strokeWidth={2.5} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="squat" stroke="#4A6B4A" strokeWidth={2.5} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="deadlift" stroke="#E6C659" strokeWidth={2.5} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="inclineDb" stroke="#38BDF8" strokeWidth={2.5} dot={{ r: 4 }} />
-                  </LineChart>
+                    <Area type="monotone" dataKey="benchPress" stroke="#FF6B2C" strokeWidth={3} fill="url(#glowBench)" dot={{ r: 4, fill: '#FF6B2C', stroke: '#121316', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#FF6B2C', stroke: '#FFFFFF', strokeWidth: 2 }} />
+                    <Area type="monotone" dataKey="squat" stroke="#4CD6DE" strokeWidth={3} fill="url(#glowSquat)" dot={{ r: 4, fill: '#4CD6DE', stroke: '#121316', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#4CD6DE', stroke: '#FFFFFF', strokeWidth: 2 }} />
+                    <Line type="monotone" dataKey="deadlift" stroke="#FFA726" strokeWidth={2.5} dot={{ r: 4, fill: '#FFA726', stroke: '#121316', strokeWidth: 2 }} />
+                    <Line type="monotone" dataKey="inclineDb" stroke="#9B7CF6" strokeWidth={2.5} dot={{ r: 4, fill: '#9B7CF6', stroke: '#121316', strokeWidth: 2 }} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-center text-xs">
-                <div className="p-2 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)]">
+                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
                   <span className="text-[10px] text-[var(--text-tertiary)] block">Bench Press 1RM</span>
-                  <span className="text-sm font-bold text-[var(--accent-primary)]">82.5 → 95.7 kg (+10%)</span>
+                  <span className="text-sm font-bold text-[#FF6B2C] font-[var(--font-display)]">82.5 → 95.7 kg (+10%)</span>
                 </div>
-                <div className="p-2 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)]">
+                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
                   <span className="text-[10px] text-[var(--text-tertiary)] block">Squat 1RM</span>
-                  <span className="text-sm font-bold text-[var(--color-moss-600)]">110 → 128.3 kg (+15%)</span>
+                  <span className="text-sm font-bold text-[#4CD6DE] font-[var(--font-display)]">110 → 128.3 kg (+15%)</span>
                 </div>
-                <div className="p-2 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)]">
+                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
                   <span className="text-[10px] text-[var(--text-tertiary)] block">Deadlift 1RM</span>
-                  <span className="text-sm font-bold text-[var(--accent-secondary)]">120 → 138.0 kg (+9%)</span>
+                  <span className="text-sm font-bold text-[#FFA726] font-[var(--font-display)]">120 → 138.0 kg (+9%)</span>
                 </div>
-                <div className="p-2 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)]">
+                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
                   <span className="text-[10px] text-[var(--text-tertiary)] block">Incline DB 1RM</span>
-                  <span className="text-sm font-bold text-sky-400">30 → 37.2 kg (+12%)</span>
+                  <span className="text-sm font-bold text-[#9B7CF6] font-[var(--font-display)]">30 → 37.2 kg (+12%)</span>
                 </div>
               </div>
             </div>
@@ -528,36 +663,39 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                    Korelasi Asupan Kalori Harian vs Tren Penurunan Berat Badan
+                    Korelasi asupan kalori harian vs tren penurunan berat badan
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Target Kalori Terjadwal: <strong className="text-[var(--accent-secondary)]">2.588 kkal</strong> (Defisit 200 kkal terhadap TDEE 2.788 kkal).
+                    Target kalori terjadwal: <strong className="text-[var(--accent-secondary)]">2.588 kkal</strong> (Defisit 200 kkal terhadap TDEE 2.788 kkal).
                   </p>
                 </div>
-                <span className="text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/30">
-                  Laju Fat Loss Rata-rata: -0.28 kg / minggu (Sangat Aman)
+                <span className="text-[11px] text-[#4CD6DE] font-semibold bg-[#4CD6DE]/10 px-2.5 py-1 rounded-full border border-[#4CD6DE]/30">
+                  Laju fat loss rata-rata: -0.28 kg / minggu
                 </span>
               </div>
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={weeklyCalorieData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333330" vertical={false} />
-                    <XAxis dataKey="day" stroke="#888880" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="cal" stroke="#888880" fontSize={10} tickLine={false} axisLine={false} domain={[1200, 3200]} />
-                    <YAxis yAxisId="wt" orientation="right" stroke="#888880" fontSize={10} tickLine={false} axisLine={false} domain={[103.5, 105.5]} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                    <XAxis dataKey="day" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="cal" stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} domain={[1200, 3200]} />
+                    <YAxis yAxisId="wt" orientation="right" stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} domain={[103.5, 105.5]} />
                     <Tooltip
+                      cursor={{ fill: 'rgba(255, 255, 255, 0.04)', radius: 8 }}
                       contentStyle={{
-                        backgroundColor: '#181816',
-                        borderColor: '#333330',
-                        borderRadius: '6px',
-                        color: '#F4F4F0',
+                        backgroundColor: '#1E2027',
+                        borderColor: '#2C303B',
+                        borderRadius: '14px',
+                        color: '#FFFFFF',
                         fontSize: '12px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
+                      labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
                     />
-                    <ReferenceLine yAxisId="cal" y={2588} stroke="#E6C659" strokeDasharray="3 3" label={{ value: 'Target 2.588 kkal', fill: '#E6C659', fontSize: 10 }} />
-                    <Bar yAxisId="cal" dataKey="calories" fill="#F05A28" opacity={0.85} radius={[4, 4, 0, 0]} maxBarSize={24} name="Asupan Kalori (kkal)" />
-                    <Line yAxisId="wt" type="monotone" dataKey="weight" stroke="#38BDF8" strokeWidth={3} dot={{ r: 4 }} name="Berat Badan (kg)" />
+                    <ReferenceLine yAxisId="cal" y={2588} stroke="#FFA726" strokeDasharray="4 4" label={{ value: 'Target 2.588 kkal', fill: '#FFA726', fontSize: 10 }} />
+                    <Bar yAxisId="cal" dataKey="calories" fill="#FF6B2C" opacity={0.9} radius={[6, 6, 0, 0]} maxBarSize={24} name="Asupan Kalori (kkal)" />
+                    <Line yAxisId="wt" type="monotone" dataKey="weight" stroke="#4CD6DE" strokeWidth={3.5} dot={{ r: 4, fill: '#4CD6DE', stroke: '#121316', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#4CD6DE', stroke: '#FFFFFF', strokeWidth: 2 }} name="Berat Badan (kg)" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -570,38 +708,41 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                    Distribusi Waktu Latihan Aktif (Under Tension) vs Istirahat (Rest)
+                    Distribusi waktu latihan aktif vs istirahat (Rest)
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
                     Evaluasi durasi set vs waktu istirahat antar-set untuk memastikan intensitas hipertrofi optimal.
                   </p>
                 </div>
-                <span className="text-[11px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30">
-                  Efisiensi Rata-rata Sesi: 56% Active Density
+                <span className="text-[11px] text-[var(--accent-secondary)] font-semibold bg-[var(--accent-secondary)]/10 px-2.5 py-1 rounded-full border border-[var(--accent-secondary)]/30">
+                  Efisiensi rata-rata sesi: 56% Active Density
                 </span>
               </div>
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={workRestRatioData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333330" vertical={false} />
-                    <XAxis dataKey="session" stroke="#888880" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888880" fontSize={10} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                    <XAxis dataKey="session" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip
+                      cursor={{ fill: 'rgba(255, 255, 255, 0.04)', radius: 8 }}
                       contentStyle={{
-                        backgroundColor: '#181816',
-                        borderColor: '#333330',
-                        borderRadius: '6px',
-                        color: '#F4F4F0',
+                        backgroundColor: '#1E2027',
+                        borderColor: '#2C303B',
+                        borderRadius: '14px',
+                        color: '#FFFFFF',
                         fontSize: '12px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
+                      labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
                       formatter={(v: unknown, name: unknown) => [
                         `${v} menit`,
                         name === 'activeMin' ? 'Waktu Angkat Aktif' : 'Waktu Istirahat (Rest)',
                       ]}
                     />
-                    <Bar dataKey="activeMin" stackId="a" fill="#4A6B4A" radius={[0, 0, 0, 0]} name="Waktu Aktif (min)" />
-                    <Bar dataKey="restMin" stackId="a" fill="#F05A28" radius={[4, 4, 0, 0]} name="Waktu Istirahat (min)" />
+                    <Bar dataKey="activeMin" stackId="a" fill="#4CD6DE" name="Waktu Aktif (min)" />
+                    <Bar dataKey="restMin" stackId="a" fill="#FF6B2C" radius={[6, 6, 0, 0]} name="Waktu Istirahat (min)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -615,18 +756,18 @@ export default function DashboardPage() {
       {/* ============================================================ */}
       <div className="my-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Muscle Recovery & Fatigue Matrix */}
-        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-5 space-y-4 shadow-xl">
+        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-[var(--border-default)]/60 pb-3">
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                <HeartPulse className="w-4 h-4 text-emerald-400" />
-                Matriks Pemulihan Otot (Recovery Status)
+                <HeartPulse className="w-4 h-4 text-[var(--color-moss-600)]" />
+                Matriks pemulihan otot (recovery status)
               </h3>
               <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                 Estimasi biologis kesiapan kelompok otot berdasarkan volume sesi terakhir.
               </p>
             </div>
-            <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-mono">
+            <span className="text-[10px] text-[var(--text-tertiary)] font-mono">
               Rule BR-017
             </span>
           </div>
@@ -641,8 +782,8 @@ export default function DashboardPage() {
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                         m.pct >= 90
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          ? 'bg-[var(--color-moss-600)]/20 text-[var(--color-moss-600)] border border-[var(--color-moss-600)]/30'
+                          : 'bg-[var(--accent-secondary)]/20 text-[var(--accent-secondary)] border border-[var(--accent-secondary)]/30'
                       }`}
                     >
                       {m.pct}% · {m.label}
@@ -653,7 +794,7 @@ export default function DashboardPage() {
                 <div className="h-1.5 w-full bg-[var(--bg-surface)] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      m.pct >= 90 ? 'bg-emerald-400' : 'bg-amber-400'
+                      m.pct >= 90 ? 'bg-[var(--color-moss-600)]' : 'bg-[var(--accent-secondary)]'
                     }`}
                     style={{ width: `${m.pct}%` }}
                   />
@@ -664,19 +805,19 @@ export default function DashboardPage() {
         </div>
 
         {/* 28-Day Workout Consistency Heatmap */}
-        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-5 space-y-4 shadow-xl flex flex-col justify-between">
+        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-[var(--border-default)]/60 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[var(--accent-primary)]" />
-                  Konsistensi Latihan (Heatmap 28 Hari)
+                  Konsistensi latihan (heatmap 28 hari)
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                   18 Sesi Latihan Selesai · 80% Kepatuhan Program (Target 4-5 sesi/minggu).
                 </p>
               </div>
-              <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+              <span className="text-[10px] text-[var(--color-moss-600)] font-bold bg-[var(--color-moss-600)]/10 px-2 py-0.5 rounded border border-[var(--color-moss-600)]/30">
                 Streak: 4 Minggu Aktif
               </span>
             </div>
@@ -684,13 +825,13 @@ export default function DashboardPage() {
             {/* Heatmap Grid (4 rows x 7 cols) */}
             <div className="pt-4 space-y-2">
               <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-[var(--text-tertiary)] font-bold mb-1">
-                <span>SEN</span>
-                <span>SEL</span>
-                <span>RAB</span>
-                <span>KAM</span>
-                <span>JUM</span>
-                <span>SAB</span>
-                <span>MIN</span>
+                <span>Sen</span>
+                <span>Sel</span>
+                <span>Rab</span>
+                <span>Kam</span>
+                <span>Jum</span>
+                <span>Sab</span>
+                <span>Min</span>
               </div>
 
               <div className="grid grid-cols-7 gap-1.5">
@@ -714,12 +855,12 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between pt-3 border-t border-[var(--border-default)]/60 text-xs text-[var(--text-secondary)]">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-[var(--bg-base)] border border-[var(--border-default)]" />
-              <span className="text-[11px]">Rest Day</span>
+              <span className="text-[11px]">Rest day</span>
               <div className="w-3 h-3 rounded bg-[var(--accent-primary)] ml-2" />
-              <span className="text-[11px]">Sesi Latihan Gym</span>
+              <span className="text-[11px]">Sesi latihan gym</span>
             </div>
             <Link href="/workouts" className="text-[var(--accent-primary)] hover:underline font-semibold text-[11px]">
-              Lihat Kalender Lengkap →
+              Lihat kalender lengkap →
             </Link>
           </div>
         </div>
@@ -732,11 +873,11 @@ export default function DashboardPage() {
       {/* ============================================================ */}
       <div className="my-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left 2 Cols: Workout Terakhir & PR Highlights */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg md:text-xl font-bold font-[var(--font-display)] text-[var(--text-primary)]">
-                Sesi Latihan Terkini & Rekor Baru (PR)
+                Sesi latihan terkini & rekor baru (PR)
               </h2>
               <p className="text-xs text-[var(--text-secondary)]">
                 Riwayat sesi terakhir dan rekor angkatan terbaru yang terdeteksi.
@@ -750,11 +891,11 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-5 shadow-lg space-y-4">
+          <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 flex-1 flex flex-col justify-between space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">
-                <span className="text-xs font-semibold text-[var(--accent-secondary)] uppercase tracking-wider">
-                  Sesi Terakhir · Kemarin, 08 Sep 2026 (18:30 WIB)
+                <span className="text-xs font-semibold text-[var(--accent-secondary)]">
+                  Sesi terakhir · Kemarin, 08 Sep 2026 (18:30 WIB)
                 </span>
                 <h3 className="text-lg font-bold text-[var(--text-primary)]">
                   Chest & Triceps Focus Session
@@ -766,15 +907,15 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-[var(--border-default)] pt-3 md:pt-0 md:pl-6 text-xs">
                 <div>
-                  <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold block">
-                    Total Volume
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
+                    Total volume
                   </span>
                   <span className="text-base font-bold tabular-nums text-[var(--text-primary)]">
                     1.680 kg
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold block">
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
                     Durasi
                   </span>
                   <span className="text-base font-bold tabular-nums text-[var(--text-primary)]">
@@ -782,8 +923,8 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold block">
-                    Rasio Aktif
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
+                    Rasio aktif
                   </span>
                   <span className="text-base font-bold tabular-nums text-[var(--color-moss-600)]">
                     54%
@@ -797,23 +938,79 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <Award className="w-4 h-4 text-[var(--accent-secondary)]" />
                 <span className="text-[var(--text-primary)] font-semibold">
-                  Personal Record Baru Terdeteksi: <strong>Barbell Bench Press (82.5 kg × 6 reps)</strong>
+                  Personal record baru terdeteksi: <strong>Barbell Bench Press (82.5 kg × 6 reps)</strong>
                 </span>
               </div>
               <PRBadge label="PR 1RM: 95.7 kg" />
+            </div>
+
+            {/* Rincian Gerakan Sesi Ini */}
+            <div className="pt-2 border-t border-[var(--border-default)]/60 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                  Rincian Gerakan Sesi Ini (4 Gerakan)
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">
+                  Beban kerja & set terbaik
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <span>Barbell Bench Press</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] font-bold">PR</span>
+                    </div>
+                    <div className="text-[10px] text-[var(--text-tertiary)]">4 Set (82.5 kg × 6) · Dada</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold font-mono text-[var(--accent-secondary)]">1RM: 95.7 kg</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-primary)]">Incline Dumbbell Press</div>
+                    <div className="text-[10px] text-[var(--text-tertiary)]">3 Set (30.0 kg × 8) · Dada Atas</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold font-mono text-[var(--text-primary)]">1RM: 37.2 kg</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-primary)]">Cable Tricep Pushdown</div>
+                    <div className="text-[10px] text-[var(--text-tertiary)]">4 Set (35.0 kg × 10) · Triceps</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold font-mono text-[var(--text-primary)]">Vol: 420 kg</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-primary)]">Cable Chest Fly</div>
+                    <div className="text-[10px] text-[var(--text-tertiary)]">3 Set (15.0 kg × 12) · Dada Isolasi</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold font-mono text-[var(--text-primary)]">Vol: 360 kg</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Right 1 Col: PR Hall of Fame */}
-        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-5 space-y-3 shadow-lg flex flex-col justify-between">
+        <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 space-y-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-[var(--border-default)]/60 pb-2.5 mb-3">
               <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
                 <Award className="w-4 h-4 text-[var(--accent-secondary)]" />
-                Papan Rekor Pribadi (PR)
+                Papan rekor pribadi (PR)
               </h3>
-              <span className="text-[10px] text-[var(--accent-secondary)] font-bold">4 Rekor Aktif</span>
+              <span className="text-[10px] text-[var(--accent-secondary)] font-bold">4 Rekor aktif</span>
             </div>
 
             <div className="space-y-2">
@@ -846,7 +1043,7 @@ export default function DashboardPage() {
       <section className="my-6 space-y-3">
         <div>
           <h2 className="text-lg md:text-xl font-bold font-[var(--font-display)] text-[var(--text-primary)]">
-            Insight & Rekomendasi Deterministik
+            Insight & rekomendasi deterministik
           </h2>
           <p className="text-xs text-[var(--text-secondary)]">
             Analisis aturan deterministik (PRD Section 17 & 26) berbasis data murni tanpa asumsi tak terverifikasi.

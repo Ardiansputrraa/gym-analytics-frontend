@@ -22,6 +22,7 @@ export interface UserProfile {
   fitnessGoal: FitnessGoal;
   dietPace: DietPace;
   checkInIntervalDays: number;
+  waterTargetMl?: number;
   createdAt: string;
   updatedAt: string;
 }

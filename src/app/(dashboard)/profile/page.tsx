@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   ChevronDown,
   ChevronUp,
+  Droplets,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -44,7 +45,7 @@ export default function ProfilePage() {
   const [proteinKg, setProteinKg] = useState<string>('14.9');
   const [mineralKg, setMineralKg] = useState<string>('3.73');
 
-  // Strategy & Calorie Engine state
+  // Strategy, Calorie & Hydration Engine state
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('MODERATELY_ACTIVE');
   const [fitnessGoal, setFitnessGoal] = useState<FitnessGoal>('WEIGHT_LOSS');
   const [dietPace, setDietPace] = useState<DietPace>('STANDARD');
@@ -86,11 +87,15 @@ export default function ProfilePage() {
     const carbsCalories = Math.max(0, calorieTarget - (proteinCalories + fatCalories));
     const carbsGrams = Math.round(carbsCalories / 4);
 
+    // Automated Hydration Target (35 ml per kg body weight rounded to nearest 50ml)
+    const recommendedWaterMl = Math.round((weightKg * 35) / 50) * 50;
+
     return {
       bmr,
       tdee,
       calorieTarget,
       adjustment,
+      recommendedWaterMl,
       macros: {
         proteinGrams,
         fatGrams,
@@ -112,10 +117,11 @@ export default function ProfilePage() {
         fitnessGoal,
         dietPace,
         checkInIntervalDays,
+        waterTargetMl: preview.recommendedWaterMl,
       });
-      toast.success('Profil fisik, komposisi tubuh, & target kalori berhasil disimpan dan disinkronkan!');
+      toast.success('Profil fisik, target kalori, & target hidrasi air otomatis berhasil disimpan!');
     } catch {
-      toast.info('Simulasi demo: Seluruh data fisik & target kalori aktif telah diperbarui.');
+      toast.info('Simulasi demo: Seluruh data fisik, target kalori & target hidrasi air telah diperbarui.');
     } finally {
       setIsLoading(false);
     }
@@ -527,7 +533,7 @@ export default function ProfilePage() {
 
             <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full">
               <Check className="w-4 h-4 mr-2" />
-              Simpan Profil & Sinkronkan Target Kalori
+              Simpan Profil & Sinkronkan Target Kalori & Hidrasi
             </Button>
           </form>
         </div>
@@ -538,13 +544,13 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-[var(--accent-secondary)]" />
-                Target Kalori Terkalibrasi
+                Target Kalori & Hidrasi Terkalibrasi
               </h3>
               <EstimatedTag />
             </div>
 
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Formula Mifflin-St Jeor & pembagian makronutrisi harian berdasarkan input berat terkini ({weightKg} kg).
+              Formula Mifflin-St Jeor & estimasi hidrasi optimal harian berdasarkan input berat terkini ({weightKg} kg).
             </p>
 
             <Divider />
@@ -562,6 +568,31 @@ export default function ProfilePage() {
                   : preview.adjustment > 0
                     ? `Surplus ${preview.adjustment} kkal dari TDEE`
                     : 'Maintenance (Setara TDEE)'}
+              </span>
+            </div>
+
+            {/* Target Hidrasi Hero */}
+            <div className="p-4 rounded-[6px] bg-[var(--bg-base)] border border-[#4CD6DE]/30 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--text-secondary)] font-medium flex items-center gap-1.5">
+                  <Droplets className="w-3.5 h-3.5 text-[#4CD6DE]" />
+                  Target Asupan Air Harian
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#4CD6DE]/10 text-[#4CD6DE] border border-[#4CD6DE]/20 font-mono">
+                  35 ml/kg BB
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <div className="text-2xl md:text-3xl font-bold font-[var(--font-display)] tabular-nums text-[#4CD6DE]">
+                  {formatNumber(preview.recommendedWaterMl)}
+                  <span className="text-xs font-normal text-[var(--text-secondary)] ml-1.5">ml/hari</span>
+                </div>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                  ≈ {(preview.recommendedWaterMl / 1000).toFixed(2)} Liter / hari
+                </span>
+              </div>
+              <span className="text-[11px] text-[var(--text-tertiary)] block">
+                Mendukung efisiensi pemulihan otot, hidrasi seluler, & laju metabolisme pembakaran lemak.
               </span>
             </div>
 
@@ -583,10 +614,10 @@ export default function ProfilePage() {
 
             <Divider />
 
-            {/* Macro distribution split */}
-            <div className="space-y-2.5">
+            {/* Macro & Hydration distribution split */}
+            <div className="space-y-3">
               <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block">
-                Distribusi Makronutrisi Target
+                Distribusi Makronutrisi & Target Hidrasi
               </span>
 
               {/* Protein */}
@@ -624,7 +655,23 @@ export default function ProfilePage() {
                   </span>
                 </div>
                 <div className="h-2 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
-                  <div className="h-full bg-[var(--color-moss-600)] rounded-full w-full" />
+                  <div className="h-full bg-[#9B7CF6] rounded-full w-full" />
+                </div>
+              </div>
+
+              {/* Hydration / Water */}
+              <div className="space-y-1 pt-1 border-t border-[var(--border-default)]/50">
+                <div className="flex justify-between text-xs">
+                  <span className="text-[var(--text-secondary)] flex items-center gap-1">
+                    <Droplets className="w-3 h-3 text-[#4CD6DE]" />
+                    Target Air Mineral (35 ml/kg)
+                  </span>
+                  <span className="font-bold tabular-nums text-[#4CD6DE]">
+                    {formatNumber(preview.recommendedWaterMl)} ml ({(preview.recommendedWaterMl / 1000).toFixed(2)}L)
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-[var(--bg-base)] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#4CD6DE] rounded-full w-full" />
                 </div>
               </div>
             </div>

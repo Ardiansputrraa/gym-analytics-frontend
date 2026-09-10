@@ -94,16 +94,16 @@ function CustomBodyCompTooltip({ active, payload, label, metric }: BodyCompToolt
   if (!active || !payload || payload.length === 0) return null;
   const val = payload[0].value;
 
-  const metricLabel = metric === 'weight' ? 'Berat Badan' : metric === 'smm' ? 'Otot Rangka (SMM)' : 'Kadar Lemak (Body Fat)';
+  const metricLabel = metric === 'weight' ? 'Berat badan' : metric === 'smm' ? 'Otot rangka (SMM)' : 'Kadar lemak (Body fat)';
   const metricUnit = metric === 'bodyFatPct' ? '%' : 'kg';
-  const metricColor = metric === 'weight' ? '#F05A28' : metric === 'smm' ? '#4E6848' : '#E6C659';
+  const metricColor = metric === 'weight' ? '#FF6B2C' : metric === 'smm' ? '#4CD6DE' : '#FFA726';
 
   return (
-    <div className="rounded-[8px] border border-[var(--border-default)] bg-[#181816]/95 backdrop-blur-md p-3.5 shadow-2xl space-y-2 min-w-[210px]">
+    <div className="rounded-[14px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 space-y-2 min-w-[210px] shadow-xl">
       <div className="flex items-center justify-between border-b border-[var(--border-default)]/60 pb-1.5">
-        <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">{label}</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-base)] border border-[var(--border-default)] text-[var(--text-tertiary)] font-mono">
-          INBODY SCAN
+        <span className="text-xs font-bold text-[var(--text-secondary)]">{label}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-[var(--text-secondary)] font-mono font-bold">
+          InBody Scan
         </span>
       </div>
 
@@ -118,7 +118,7 @@ function CustomBodyCompTooltip({ active, payload, label, metric }: BodyCompToolt
         <div className="text-[11px] pt-1 text-[var(--text-secondary)] flex items-center justify-between">
           <span>Klasifikasi:</span>
           <span className="font-semibold text-[var(--text-primary)]">
-            {metric === 'weight' ? 'Fase Fat Loss' : metric === 'smm' ? 'Progressive Overload' : 'Defisit Terkalibrasi'}
+            {metric === 'weight' ? 'Fase fat loss' : metric === 'smm' ? 'Progressive overload' : 'Defisit terkalibrasi'}
           </span>
         </div>
       </div>
@@ -371,9 +371,9 @@ export default function BodyCompositionPage() {
       <Divider thick />
 
       {/* ============================================================ */}
-      {/* HIGH-END ELEGANT AREA CHART SECTION */}
+      {/* HISTORICAL LINE CHART SECTION */}
       {/* ============================================================ */}
-      <div className="my-6 border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-5 md:p-6 space-y-4 shadow-xl">
+      <div className="my-6 border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 md:p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-default)]/60 pb-4">
           <div>
             <div className="flex items-center gap-2">
@@ -382,7 +382,7 @@ export default function BodyCompositionPage() {
               </div>
               <div>
                 <h3 className="text-base md:text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)]">
-                  Grafik Perkembangan Komposisi Tubuh (Historis)
+                  Grafik perkembangan komposisi tubuh (historis)
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
                   Evaluasi pergerakan berat, massa otot rangka, dan kadar lemak dengan sensor visual presisi tinggi.
@@ -398,7 +398,7 @@ export default function BodyCompositionPage() {
                 onClick={() => setActiveChartMetric('weight')}
                 className={`px-3 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
                   activeChartMetric === 'weight'
-                    ? 'bg-[var(--accent-primary)] text-[var(--accent-primary-ink)] font-bold shadow-sm'
+                    ? 'bg-[var(--accent-primary)] text-[var(--accent-primary-ink)] font-bold'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -408,7 +408,7 @@ export default function BodyCompositionPage() {
                 onClick={() => setActiveChartMetric('smm')}
                 className={`px-3 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
                   activeChartMetric === 'smm'
-                    ? 'bg-[var(--color-moss-600)] text-white font-bold shadow-sm'
+                    ? 'bg-[var(--color-moss-600)] text-white font-bold'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -418,7 +418,7 @@ export default function BodyCompositionPage() {
                 onClick={() => setActiveChartMetric('bodyFatPct')}
                 className={`px-3 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
                   activeChartMetric === 'bodyFatPct'
-                    ? 'bg-[var(--accent-secondary)] text-[var(--bg-base)] font-bold shadow-sm'
+                    ? 'bg-[var(--accent-secondary)] text-[var(--bg-base)] font-bold'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -434,7 +434,7 @@ export default function BodyCompositionPage() {
                   onClick={() => setTimeRange(range)}
                   className={`px-2.5 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
                     timeRange === range
-                      ? 'bg-[var(--bg-surface-raised)] text-[var(--text-primary)] border border-[var(--border-default)] font-bold shadow-sm'
+                      ? 'bg-[var(--bg-surface-raised)] text-[var(--text-primary)] border border-[var(--border-default)] font-bold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
@@ -448,21 +448,21 @@ export default function BodyCompositionPage() {
         {/* Micro-Telemetry Stat Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
           <div className="p-2.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)]">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Awal Periode</span>
+            <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Awal periode</span>
             <span className="text-sm font-bold font-[var(--font-display)] text-[var(--text-primary)] tabular-nums">
               {stats.first} {stats.unit}
             </span>
           </div>
 
           <div className="p-2.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)]">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Nilai Terkini</span>
+            <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Nilai terkini</span>
             <span className="text-sm font-bold font-[var(--font-display)] text-[var(--text-primary)] tabular-nums">
               {stats.last} {stats.unit}
             </span>
           </div>
 
           <div className="p-2.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)]">
-            <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Total Perubahan</span>
+            <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Total perubahan</span>
             <span
               className={`text-sm font-bold font-[var(--font-display)] tabular-nums ${
                 activeChartMetric === 'smm'
@@ -478,54 +478,75 @@ export default function BodyCompositionPage() {
             </span>
           </div>
 
-          <div className="p-2.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
+          <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Evaluasi Tren</span>
-              <span className="text-sm font-bold font-[var(--font-display)] text-[var(--color-moss-600)] flex items-center gap-1">
+              <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Evaluasi tren</span>
+              <span className="text-sm font-bold font-[var(--font-display)] text-[#4CD6DE] flex items-center gap-1">
                 {activeChartMetric === 'smm' ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                {activeChartMetric === 'smm' ? 'Otot Meningkat' : 'Lemak Menurun'}
+                {activeChartMetric === 'smm' ? 'Otot meningkat (+0.4 kg)' : 'Lemak menurun (-0.6%)'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Recharts Area Chart */}
+        {/* Clean Kinetic Area Chart (Activity Curve Style) */}
         <div className="h-72 w-full pt-3">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={activeData} margin={{ top: 15, right: 15, left: -15, bottom: 0 }}>
               <defs>
-                <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#F05A28" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#F05A28" stopOpacity={0.0} />
-                </linearGradient>
-                <linearGradient id="smmGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#4E6848" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#4E6848" stopOpacity={0.0} />
-                </linearGradient>
-                <linearGradient id="fatGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#E6C659" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#E6C659" stopOpacity={0.0} />
+                <linearGradient id="bodyCompGlow" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stopColor={
+                      activeChartMetric === 'weight'
+                        ? '#FF6B2C'
+                        : activeChartMetric === 'smm'
+                        ? '#4CD6DE'
+                        : '#FFA726'
+                    }
+                    stopOpacity={0.25}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={
+                      activeChartMetric === 'weight'
+                        ? '#FF6B2C'
+                        : activeChartMetric === 'smm'
+                        ? '#4CD6DE'
+                        : '#FFA726'
+                    }
+                    stopOpacity={0.0}
+                  />
                 </linearGradient>
               </defs>
-
-              <CartesianGrid strokeDasharray="4 4" stroke="#333330" vertical={false} />
+              <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
               <XAxis
                 dataKey="date"
-                stroke="#888880"
+                stroke="#646A7C"
                 fontSize={11}
                 tickLine={false}
-                axisLine={{ stroke: '#333330' }}
+                axisLine={false}
               />
               <YAxis
                 domain={['dataMin - 1', 'dataMax + 1']}
-                stroke="#888880"
+                stroke="#646A7C"
                 fontSize={11}
                 tickLine={false}
-                axisLine={{ stroke: '#333330' }}
+                axisLine={false}
                 unit={activeChartMetric === 'bodyFatPct' ? '%' : 'kg'}
               />
 
               <Tooltip
+                cursor={{
+                  stroke:
+                    activeChartMetric === 'weight'
+                      ? '#FF6B2C'
+                      : activeChartMetric === 'smm'
+                      ? '#4CD6DE'
+                      : '#FFA726',
+                  strokeDasharray: '3 3',
+                  strokeWidth: 1.5,
+                }}
                 content={<CustomBodyCompTooltip metric={activeChartMetric} />}
               />
 
@@ -541,40 +562,34 @@ export default function BodyCompositionPage() {
                 }
                 stroke={
                   activeChartMetric === 'weight'
-                    ? '#F05A28'
+                    ? '#FF6B2C'
                     : activeChartMetric === 'smm'
-                    ? '#4E6848'
-                    : '#E6C659'
+                    ? '#4CD6DE'
+                    : '#FFA726'
                 }
                 strokeWidth={3}
-                fill={
-                  activeChartMetric === 'weight'
-                    ? 'url(#weightGrad)'
-                    : activeChartMetric === 'smm'
-                    ? 'url(#smmGrad)'
-                    : 'url(#fatGrad)'
-                }
+                fill="url(#bodyCompGlow)"
                 dot={{
                   r: 4,
                   fill:
                     activeChartMetric === 'weight'
-                      ? '#F05A28'
+                      ? '#FF6B2C'
                       : activeChartMetric === 'smm'
-                      ? '#4E6848'
-                      : '#E6C659',
-                  stroke: '#1C1C1A',
+                      ? '#4CD6DE'
+                      : '#FFA726',
+                  stroke: '#121316',
                   strokeWidth: 2,
                 }}
                 activeDot={{
-                  r: 7,
-                  stroke: '#F4F4F0',
+                  r: 6,
+                  stroke: '#FFFFFF',
                   strokeWidth: 2,
                   fill:
                     activeChartMetric === 'weight'
-                      ? '#F05A28'
+                      ? '#FF6B2C'
                       : activeChartMetric === 'smm'
-                      ? '#4E6848'
-                      : '#E6C659',
+                      ? '#4CD6DE'
+                      : '#FFA726',
                 }}
               />
             </AreaChart>
@@ -592,7 +607,7 @@ export default function BodyCompositionPage() {
           <div>
             <h2 className="text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-[var(--accent-primary)]" />
-              Tabel Riwayat InBody Scan ({filteredScans.length} Data Scan)
+              Tabel riwayat scan InBody ({filteredScans.length} data scan)
             </h2>
             <p className="text-xs text-[var(--text-secondary)]">
               Rekapitulasi pengukuran body composition berkala beserta analisis delta dan PR.
