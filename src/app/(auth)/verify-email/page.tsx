@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Dumbbell, ArrowRight, ShieldCheck, Mail, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { authService } from '@/services/auth.service';
+import { extractApiError } from '@/lib/utils';
 import { toast } from 'sonner';
 
 function VerifyEmailContent() {
@@ -62,22 +63,19 @@ function VerifyEmailContent() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     const fullCode = otp.join('');
-    if (fullCode.length < 6) {
-      toast.error('Silakan masukkan 6-digit kode OTP lengkap.');
-      return;
-    }
 
     setIsLoading(true);
     try {
-      await authService.verifyEmail({ email, code: fullCode });
-      toast.success('Email berhasil diverifikasi! Selamat datang di GYM ANALYTICS.');
-      router.push('/dashboard');
-    } catch {
-      // Prototype simulation flow
-      toast.success('Simulasi verifikasi berhasil! Mengarahkan ke dashboard.');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
+      const res = await authService.verifyEmail({ email, otp: fullCode });
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Email berhasil diverifikasi.';
+      toast.success(successMsg);
+      router.push('/login');
+    } catch (err: unknown) {
+      const backendMessage = extractApiError(err, 'Kode OTP tidak valid atau telah kedaluwarsa.');
+      toast.error(backendMessage);
     } finally {
       setIsLoading(false);
     }
@@ -87,12 +85,16 @@ function VerifyEmailContent() {
     if (countdown > 0) return;
     setIsResending(true);
     try {
-      await authService.resendOtp({ email, type: 'EMAIL_VERIFICATION' });
-      toast.success('Kode OTP baru telah dikirimkan ke email Anda.');
+      const res = await authService.resendOtp({ email, type: 'EMAIL_VERIFICATION' });
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Kode OTP baru telah dikirimkan ke email Anda.';
+      toast.success(successMsg);
       setCountdown(60);
-    } catch {
-      toast.info('Simulasi demo: Kode OTP baru (6-digit) telah dikirim ke ' + email);
-      setCountdown(60);
+    } catch (err: unknown) {
+      const backendMessage = extractApiError(err, 'Gagal mengirim ulang kode OTP. Coba beberapa saat lagi.');
+      toast.error(backendMessage);
     } finally {
       setIsResending(false);
     }
@@ -119,7 +121,7 @@ function VerifyEmailContent() {
         </div>
 
         {/* OTP Input Form */}
-        <form onSubmit={handleVerify} className="space-y-6">
+        <form onSubmit={handleVerify} noValidate className="space-y-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider block text-center">
               Kode OTP (6-Digit)

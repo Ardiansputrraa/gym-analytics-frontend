@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Dumbbell, ArrowRight, Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { authService } from '@/services/auth.service';
+import { extractApiError } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface LoginApiResponse {
@@ -21,20 +22,76 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('gym_access_token') : null;
+    if (token) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
+
+  const handleBlur = (field: 'email' | 'password') => {
+    if (field === 'email' && !email.trim()) {
+      toast.error('Email harus diisi.');
+    } else if (field === 'password' && !password.trim()) {
+      toast.error('Password harus diisi.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = (await authService.login({ email, password })) as unknown as LoginApiResponse;
-      const token = res?.data?.accessToken || res?.accessToken;
+      const res = await authService.login({ email: email.trim(), password });
+      const token =
+        (res as { data?: { accessToken?: string }; accessToken?: string })?.data?.accessToken ||
+        res?.accessToken;
       if (token) {
         localStorage.setItem('gym_access_token', token);
       }
-      toast.success('Login berhasil! Selamat datang kembali.');
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Login berhasil! Selamat datang kembali.';
+      toast.success(successMsg);
       router.push('/dashboard');
-    } catch {
-      toast.info('Kredensial demo: Mengarahkan ke dashboard.');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { code?: string } } };
+      const code = axiosErr.response?.data?.code;
+      const backendMessage = extractApiError(err, 'Email atau kata sandi salah.');
+
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        toast.error(backendMessage);
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+      } else {
+        toast.error(backendMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const res = await authService.googleAuth({
+        email: email.trim() || 'athlete.demo@gmail.com',
+        name: 'Gym Athlete Google',
+      });
+      const token =
+        (res as { data?: { accessToken?: string }; accessToken?: string })?.data?.accessToken ||
+        res?.accessToken;
+      if (token) {
+        localStorage.setItem('gym_access_token', token);
+      }
+      const successMsg =
+        (res as { message?: string; data?: { message?: string } })?.message ||
+        (res as { message?: string; data?: { message?: string } })?.data?.message ||
+        'Login Google SSO berhasil! Selamat datang.';
+      toast.success(successMsg);
       router.push('/dashboard');
+    } catch (err: unknown) {
+      const backendMessage = extractApiError(err, 'Login Google gagal.');
+      toast.error(backendMessage);
     } finally {
       setIsLoading(false);
     }
@@ -59,14 +116,9 @@ export default function LoginPage() {
         {/* Google SSO Button */}
         <button
           type="button"
-          onClick={() => {
-            toast.info('Simulasi SSO: Menghubungkan ke Google OAuth...');
-            setTimeout(() => {
-              toast.success('Login Google SSO berhasil! Mengarahkan ke dashboard.');
-              router.push('/dashboard');
-            }, 1000);
-          }}
-          className="w-full h-12 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] hover:bg-[var(--bg-surface-raised)] hover:border-[var(--text-tertiary)] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-3 transition-colors cursor-pointer shadow-sm"
+          disabled={isLoading}
+          onClick={handleGoogleLogin}
+          className="w-full h-12 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] hover:bg-[var(--bg-surface-raised)] hover:border-[var(--text-tertiary)] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-3 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
         >
           <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
             <path
@@ -99,17 +151,17 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-secondary)]">Email</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
-                required
                 placeholder="nama@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => handleBlur('email')}
                 className="w-full h-12 pl-10 pr-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
               />
             </div>
@@ -129,10 +181,10 @@ export default function LoginPage() {
               <Lock className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                required
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => handleBlur('password')}
                 className="w-full h-12 pl-10 pr-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--focus-ring)]"
               />
             </div>
