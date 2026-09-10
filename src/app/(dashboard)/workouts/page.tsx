@@ -13,8 +13,10 @@ import {
   MASTER_EXERCISES_LIBRARY,
   ExerciseMaster,
   MuscleGroupCategory,
+  WorkoutTelemetryAggregates,
 } from '@/types/workout.types';
 import { exerciseService } from '@/services/exercise.service';
+import { workoutService } from '@/services/workout.service';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
   Plus,
@@ -388,6 +390,31 @@ export default function WorkoutsPage() {
     setLibraryPage(1);
   }, [debouncedLibrarySearch, muscleFilter]);
 
+  // Backend Analytics state
+  const [backendAnalytics, setBackendAnalytics] = useState<WorkoutTelemetryAggregates | null>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchAnalytics = async () => {
+      setIsAnalyticsLoading(true);
+      try {
+        const data = await workoutService.getAnalytics(timeframe as any);
+        if (!isCancelled && data) {
+          setBackendAnalytics(data);
+        }
+      } catch {
+        // Keep local fallback
+      } finally {
+        if (!isCancelled) setIsAnalyticsLoading(false);
+      }
+    };
+    fetchAnalytics();
+    return () => {
+      isCancelled = true;
+    };
+  }, [timeframe]);
+
   // Filtered workout history based on active timeframe
   const filteredWorkouts = useMemo(() => {
     return allWorkoutHistory.filter((w) => {
@@ -421,37 +448,38 @@ export default function WorkoutsPage() {
     return filteredWorkouts.slice(start, start + sessionPageSize);
   }, [filteredWorkouts, sessionPage, sessionPageSize]);
 
-  // Aggregated KPIs for selected timeframe
+  // Aggregated KPIs for selected timeframe (prefer backend analytics when available)
   const aggregatedStats = useMemo(() => {
-    const totalVolume = filteredWorkouts.reduce((acc, w) => acc + w.volumeKg, 0);
-    const totalDuration = filteredWorkouts.reduce((acc, w) => acc + w.durationMinutes, 0);
-    const totalActive = filteredWorkouts.reduce((acc, w) => acc + w.activeMinutes, 0);
-    const totalRest = filteredWorkouts.reduce((acc, w) => acc + w.restMinutes, 0);
-    const totalCardio = filteredWorkouts.reduce((acc, w) => acc + (w.cardioMinutes || 0), 0);
-    const totalDistance = filteredWorkouts.reduce((acc, w) => acc + (w.cardioDistanceKm || 0), 0);
-    const totalCalories = filteredWorkouts.reduce((acc, w) => acc + (w.caloriesBurned || 0), 0);
-    const prCount = filteredWorkouts.filter((w) => w.hasPr).length;
-    const totalSets = filteredWorkouts.reduce((acc, w) => acc + w.totalSets, 0);
+    const localVolume = filteredWorkouts.reduce((acc, w) => acc + w.volumeKg, 0);
+    const localDuration = filteredWorkouts.reduce((acc, w) => acc + w.durationMinutes, 0);
+    const localActive = filteredWorkouts.reduce((acc, w) => acc + w.activeMinutes, 0);
+    const localRest = filteredWorkouts.reduce((acc, w) => acc + w.restMinutes, 0);
+    const localCardio = filteredWorkouts.reduce((acc, w) => acc + (w.cardioMinutes || 0), 0);
+    const localDistance = filteredWorkouts.reduce((acc, w) => acc + (w.cardioDistanceKm || 0), 0);
+    const localCalories = filteredWorkouts.reduce((acc, w) => acc + (w.caloriesBurned || 0), 0);
+    const localPrCount = filteredWorkouts.filter((w) => w.hasPr).length;
+    const localSets = filteredWorkouts.reduce((acc, w) => acc + w.totalSets, 0);
 
-    const activeDensity =
-      totalActive + totalRest > 0
-        ? Math.round((totalActive / (totalActive + totalRest)) * 100)
-        : 54;
+    const localActiveDensity =
+      localActive + localRest > 0
+        ? Math.round((localActive / (localActive + localRest)) * 100)
+        : 60;
 
     return {
-      totalVolume,
-      totalDuration,
-      totalActive,
-      totalRest,
-      totalCardio,
-      totalDistance: +totalDistance.toFixed(1),
-      totalCalories,
-      prCount,
-      totalSets,
-      activeDensity,
-      sessionCount: filteredWorkouts.length,
+      totalVolume: backendAnalytics?.totalVolumeKg ?? localVolume,
+      totalDuration: backendAnalytics?.totalDurationMinutes ?? localDuration,
+      totalActive: localActive,
+      totalRest: localRest,
+      totalCardio: backendAnalytics?.totalCardioMinutes ?? localCardio,
+      totalDistance: backendAnalytics?.totalDistanceKm ?? +localDistance.toFixed(1),
+      totalCalories: backendAnalytics?.totalCaloriesBurned ?? localCalories,
+      prCount: backendAnalytics?.newPrCount ?? localPrCount,
+      totalSets: backendAnalytics?.totalSets ?? localSets,
+      activeDensity: backendAnalytics?.activeRatioPct ?? localActiveDensity,
+      sessionCount: backendAnalytics?.totalSessions ?? filteredWorkouts.length,
+      volumeDelta: backendAnalytics?.volumeDeltaPct ?? 8.4,
     };
-  }, [filteredWorkouts]);
+  }, [filteredWorkouts, backendAnalytics]);
 
   return (
     <AppShell>

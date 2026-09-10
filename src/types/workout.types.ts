@@ -39,52 +39,121 @@ export interface ExerciseMaster {
 
 export interface WorkoutSetItem {
   id: string;
+  workoutExerciseId?: string;
+  orderIndex?: number;
   setNumber: number;
   weightKg: number;
   reps: number;
   durationSeconds?: number;
   restSeconds?: number;
-  rpe?: number; // Rate of Perceived Exertion (1-10)
+  rpe?: number | null;
   isCompleted: boolean;
   isPr?: boolean;
+  completedAt?: string | null;
 
   // Specific metrics for Treadmill / Cardio exercises
   durationMinutes?: number;
   inclinePercentage?: number;
-  speedKmh?: number;
-  distanceKm?: number;
-  caloriesBurned?: number;
-  paceMinPerKm?: string;
+  inclinePct?: number | null;
+  speedKmh?: number | null;
+  distanceKm?: number | null;
+  caloriesBurned?: number | null;
+  paceMinPerKm?: string | null;
 }
 
 export interface WorkoutExerciseItem {
   id: string;
-  exerciseId?: string;
+  workoutId?: string;
+  exerciseId: string;
   exerciseName: string;
-  muscleGroupName: string;
+  name?: string;
+  muscleGroupName?: string;
+  primaryMuscleName?: string;
   muscleGroup: MuscleGroupCategory;
+  primaryMuscle?: MuscleGroupCategory;
   equipment: EquipmentCategory;
   equipmentName: string;
   exerciseType?: ExerciseType;
   orderIndex: number;
-  notes?: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  notes?: string | null;
   sets: WorkoutSetItem[];
 }
 
 export interface WorkoutSession {
   id: string;
+  userId?: string;
   name: string;
-  date: string;
+  routineTemplateId?: string | null;
+  routineTemplateName?: string | null;
+  date?: string;
   status: WorkoutStatus;
-  startedAt?: string;
-  completedAt?: string;
-  totalDurationSeconds: number;
-  activeSeconds: number;
-  restSeconds: number;
-  totalVolumeKg: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  notes?: string | null;
+  totalDurationSeconds?: number;
+  activeSeconds?: number;
+  restSeconds?: number;
+  totalVolumeKg?: number;
   estimatedCaloriesBurned?: number;
   exercises: WorkoutExerciseItem[];
 }
+
+export interface RoutineTemplateExercise {
+  id: string;
+  routineTemplateId: string;
+  exerciseId: string;
+  exerciseName: string;
+  equipment: string;
+  primaryMuscle: string;
+  orderIndex: number;
+  targetSets: number;
+  targetReps?: number | null;
+  targetRestSeconds: number;
+}
+
+export interface RoutineTemplate {
+  id: string;
+  name: string;
+  description?: string | null;
+  category: string;
+  isActive: boolean;
+  exercises: RoutineTemplateExercise[];
+}
+
+export interface WorkoutTelemetryAggregates {
+  totalVolumeKg: number;
+  volumeDeltaPct: number;
+  totalSessions: number;
+  totalSets: number;
+  totalDurationMinutes: number;
+  activeRatioPct: number;
+  totalCardioMinutes: number;
+  totalDistanceKm: number;
+  totalCaloriesBurned: number;
+  newPrCount: number;
+  chartData: {
+    date: string;
+    label: string;
+    volumeKg: number;
+    activeMinutes: number;
+    restMinutes: number;
+    totalMinutes: number;
+  }[];
+}
+
+export interface PersonalRecordItem {
+  id: string;
+  userId: string;
+  exerciseId: string;
+  exerciseName?: string;
+  workoutSetId?: string | null;
+  recordType: 'MAX_WEIGHT' | 'MAX_REPS' | 'MAX_VOLUME';
+  value: number;
+  achievedAt: string;
+}
+
 
 // Master Pre-populated Library of Gym Exercises across all Equipment & Muscle Groups
 export const MASTER_EXERCISES_LIBRARY: ExerciseMaster[] = [
