@@ -29,12 +29,12 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   return (
     <div
       className={cn(
-        'border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-3.5 sm:p-4 md:p-6 flex flex-col justify-between transition-colors shadow-sm',
+        'border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[16px] p-4 sm:p-5 md:p-6 flex flex-col justify-between transition-all hover:border-[var(--border-default)]/90 shadow-sm',
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-1.5 mb-1.5">
-        <span className="text-[11px] sm:text-xs md:text-sm font-medium text-[var(--text-secondary)] line-clamp-1">{label}</span>
+      <div className="flex items-center justify-between gap-1.5 mb-2">
+        <span className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)] line-clamp-1">{label}</span>
         <div className="flex items-center gap-1 shrink-0">
           {isEstimated && <EstimatedTag />}
           {icon && <span className="text-[var(--text-tertiary)]">{icon}</span>}

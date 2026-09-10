@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   BarChart3,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -783,8 +784,8 @@ export default function NutritionPage() {
       {/* ============================================================ */}
       {timeframe === 'TODAY' && (
         <>
-          {/* Hero Metric Cards for Today */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Hero Metric Cards for Today (5-Card Responsive Grid) */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
             <MetricCard
               label="Kalori Terkonsumsi"
               value={formatNumber(totalConsumedCalories)}
@@ -795,10 +796,11 @@ export default function NutritionPage() {
                   : `Kelebihan: +${formatNumber(Math.abs(remainingCalories))} kkal`
               }
               icon={<Flame className="w-4 h-4 text-[var(--accent-primary)]" />}
+              className="col-span-2 lg:col-span-1"
             />
 
             <MetricCard
-              label="Asupan Air Minum (Hidrasi)"
+              label="Asupan Air (Hidrasi)"
               value={formatNumber(totalConsumedWater)}
               unit={`/ ${formatNumber(targetWaterMl)} ml`}
               subValue={
@@ -806,87 +808,322 @@ export default function NutritionPage() {
                   ? `Sisa: ${formatNumber(remainingWater)} ml`
                   : `Target Tercapai (+${formatNumber(Math.abs(remainingWater))} ml)`
               }
-              icon={<Droplets className="w-4 h-4 text-sky-400" />}
+              icon={<Droplets className="w-4 h-4 text-[#4CD6DE]" />}
             />
 
             <MetricCard
               label="Protein Harian"
-              value={formatNumber(totalProtein)}
+              value={`${totalProtein}`}
               unit={`/ ${targetProtein}g`}
-              subValue={`Target: 2.0g/kg (${Math.round((totalProtein / targetProtein) * 100)}%)`}
-              icon={<PieChart className="w-4 h-4 text-[var(--accent-secondary)]" />}
+              subValue={`Sisa: ${Math.max(0, targetProtein - totalProtein)}g (${Math.round((totalProtein / targetProtein) * 100)}%)`}
+              icon={<Utensils className="w-4 h-4 text-[var(--accent-primary)]" />}
             />
 
             <MetricCard
-              label="Lemak & Karbohidrat"
-              value={`${totalFat}g / ${totalCarbs}g`}
-              subValue={`Target: ${targetFat}g Lemak · ${targetCarbs}g Karbo`}
-              icon={<Utensils className="w-4 h-4 text-[var(--color-moss-600)]" />}
+              label="Lemak Harian"
+              value={`${totalFat}`}
+              unit={`/ ${targetFat}g`}
+              subValue={`Sisa: ${Math.max(0, targetFat - totalFat)}g (${Math.round((totalFat / targetFat) * 100)}%)`}
+              icon={<PieChart className="w-4 h-4 text-[#FFA726]" />}
+            />
+
+            <MetricCard
+              label="Karbohidrat Harian"
+              value={`${totalCarbs}`}
+              unit={`/ ${targetCarbs}g`}
+              subValue={`Sisa: ${Math.max(0, targetCarbs - totalCarbs)}g (${Math.round((totalCarbs / targetCarbs) * 100)}%)`}
+              icon={<Zap className="w-4 h-4 text-[#9B7CF6]" />}
             />
           </div>
 
           <Divider thick />
 
-          {/* Primary Progress Bars: 1. Daily Calories & 2. Daily Water Intake */}
-          <section className="my-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Progress Bar 1: Kalori Harian */}
-            <div className="p-5 border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-[var(--accent-primary)]" />
-                  Progres Kalori Harian
-                </h3>
-                <span className="text-xs font-semibold tabular-nums text-[var(--text-secondary)]">
-                  {Math.round((totalConsumedCalories / targetCalories) * 100)}%
-                </span>
-              </div>
+          {/* ============================================================ */}
+          {/* SECTION: CIRCULAR RADIAL GAUGES (KALORI, AIR & MAKRONUTRISI) */}
+          {/* ============================================================ */}
+          <section className="my-6 space-y-4">
+            {/* 1. Dual Primary Radial Gauges: Kalori & Hidrasi Air */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Card 1: Circular Radial Gauge - Progres Kalori Harian */}
+              <div className="p-5 rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex flex-col sm:flex-row items-center justify-between gap-5">
+                <div className="space-y-3 flex-1 text-center sm:text-left">
+                  <div>
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <div className="p-1.5 rounded-[8px] bg-[#FF6B2C]/15 text-[#FF6B2C]">
+                        <Flame className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        Progres Kalori Harian
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-center sm:justify-start gap-1.5">
+                      <span className="text-2xl sm:text-3xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                        {formatNumber(totalConsumedCalories)}
+                      </span>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)]">/ {formatNumber(targetCalories)} kkal</span>
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <div className="h-4 w-full bg-[var(--bg-base)] rounded-full overflow-hidden border border-[var(--border-default)]">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#D64317] to-[var(--accent-primary)] rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(240,90,40,0.3)]"
-                    style={{
-                      width: `${Math.min(100, (totalConsumedCalories / targetCalories) * 100)}%`,
-                    }}
-                  />
+                  <div className="space-y-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-default)]/60 pt-2.5">
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-[var(--text-tertiary)]">Sisa Kalori:</span>
+                      <span className="font-bold text-[#FF6B2C] font-mono">{formatNumber(remainingCalories)} kkal</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-[var(--text-tertiary)]">Status Target:</span>
+                      <span className="font-semibold text-white font-mono">Defisit Terjaga (-948 kkal)</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-[var(--text-tertiary)]">Target Harian:</span>
+                      <span className="font-mono text-[var(--text-secondary)]">{formatNumber(targetCalories)} kkal/hari</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex justify-between text-xs text-[var(--text-tertiary)] pt-1">
-                  <span>Terkonsumsi: {formatNumber(totalConsumedCalories)} kkal</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    Target: {formatNumber(targetCalories)} kkal
-                  </span>
+                {/* Right Circular Gauge */}
+                <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke="#262934"
+                      strokeWidth="10"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke="#FF6B2C"
+                      strokeWidth="10"
+                      strokeDasharray="238.7"
+                      strokeDashoffset={238.7 * (1 - Math.min(100, Math.round((totalConsumedCalories / targetCalories) * 100)) / 100)}
+                      strokeLinecap="round"
+                      fill="transparent"
+                      className="transition-all duration-700 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                      {Math.round((totalConsumedCalories / targetCalories) * 100)}%
+                    </span>
+                    <span className="text-[9px] font-bold text-[#FF6B2C] uppercase tracking-wider">
+                      Tercapai
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Circular Radial Gauge - Progres Hidrasi Air Minum */}
+              <div className="p-5 rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex flex-col sm:flex-row items-center justify-between gap-5">
+                <div className="space-y-3 flex-1 text-center sm:text-left">
+                  <div>
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <div className="p-1.5 rounded-[8px] bg-[#4CD6DE]/15 text-[#4CD6DE]">
+                        <Droplets className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        Progres Hidrasi Air Minum
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-center sm:justify-start gap-1.5">
+                      <span className="text-2xl sm:text-3xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                        {formatNumber(totalConsumedWater)}
+                      </span>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)]">/ {formatNumber(targetWaterMl)} ml</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-default)]/60 pt-2.5">
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-[var(--text-tertiary)]">Sisa Target Hidrasi:</span>
+                      <span className="font-bold text-[#4CD6DE] font-mono">{formatNumber(remainingWater)} ml</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-[var(--text-tertiary)]">Setara:</span>
+                      <span className="font-semibold text-white font-mono">~3-4 Gelas Air</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-[var(--text-tertiary)]">Standar Rumus:</span>
+                      <span className="font-mono text-[var(--text-secondary)]">35 ml × 100 kg</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Circular Gauge */}
+                <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke="#262934"
+                      strokeWidth="10"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke="#4CD6DE"
+                      strokeWidth="10"
+                      strokeDasharray="238.7"
+                      strokeDashoffset={238.7 * (1 - Math.min(100, Math.round((totalConsumedWater / targetWaterMl) * 100)) / 100)}
+                      strokeLinecap="round"
+                      fill="transparent"
+                      className="transition-all duration-700 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
+                      {Math.round((totalConsumedWater / targetWaterMl) * 100)}%
+                    </span>
+                    <span className="text-[9px] font-bold text-[#4CD6DE] uppercase tracking-wider">
+                      Terpenuhi
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Progress Bar 2: Hidrasi Air Harian */}
-            <div className="p-5 border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-2">
-                  <Droplets className="w-4 h-4 text-sky-400" />
-                  Progres Hidrasi Air Minum
-                </h3>
-                <span className="text-xs font-semibold tabular-nums text-sky-400">
-                  {Math.round((totalConsumedWater / targetWaterMl) * 100)}%
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <div className="h-4 w-full bg-[var(--bg-base)] rounded-full overflow-hidden border border-[var(--border-default)]">
-                  <div
-                    className="h-full bg-gradient-to-r from-sky-600 to-sky-400 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(56,189,248,0.3)]"
-                    style={{
-                      width: `${Math.min(100, (totalConsumedWater / targetWaterMl) * 100)}%`,
-                    }}
-                  />
+            {/* 2. Three Dedicated Macro Radial Gauges: Protein, Lemak, Karbohidrat */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+              {/* Macro 1: Protein Circular Gauge */}
+              <div className="p-4 rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex items-center justify-between gap-4">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="p-1 rounded-[6px] bg-[#FF6B2C]/15 text-[#FF6B2C]">
+                      <Utensils className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Protein Harian
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold font-[var(--font-display)] text-white tabular-nums">
+                      {totalProtein}g
+                    </span>
+                    <span className="text-[11px] text-[var(--text-secondary)]">/ {targetProtein}g</span>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-tertiary)] block">
+                    Sisa {Math.max(0, targetProtein - totalProtein)}g lagi (Target 2.0g/kg)
+                  </span>
                 </div>
 
-                <div className="flex justify-between text-xs text-[var(--text-tertiary)] pt-1">
-                  <span>Diminum: {formatNumber(totalConsumedWater)} ml</span>
-                  <span className="font-bold text-sky-400">
-                    Target: {formatNumber(targetWaterMl)} ml (3.5L)
+                <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="38" stroke="#262934" strokeWidth="10" fill="transparent" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke="#FF6B2C"
+                      strokeWidth="10"
+                      strokeDasharray="238.7"
+                      strokeDashoffset={238.7 * (1 - Math.min(100, Math.round((totalProtein / targetProtein) * 100)) / 100)}
+                      strokeLinecap="round"
+                      fill="transparent"
+                      className="transition-all duration-700 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-bold font-[var(--font-display)] text-white tabular-nums">
+                      {Math.round((totalProtein / targetProtein) * 100)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Macro 2: Lemak (Fat) Circular Gauge */}
+              <div className="p-4 rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex items-center justify-between gap-4">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="p-1 rounded-[6px] bg-[#FFA726]/15 text-[#FFA726]">
+                      <PieChart className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Lemak Harian
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold font-[var(--font-display)] text-white tabular-nums">
+                      {totalFat}g
+                    </span>
+                    <span className="text-[11px] text-[var(--text-secondary)]">/ {targetFat}g</span>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-tertiary)] block">
+                    Sisa {Math.max(0, targetFat - totalFat)}g lagi (Maks 25% kalori)
                   </span>
+                </div>
+
+                <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="38" stroke="#262934" strokeWidth="10" fill="transparent" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke="#FFA726"
+                      strokeWidth="10"
+                      strokeDasharray="238.7"
+                      strokeDashoffset={238.7 * (1 - Math.min(100, Math.round((totalFat / targetFat) * 100)) / 100)}
+                      strokeLinecap="round"
+                      fill="transparent"
+                      className="transition-all duration-700 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-bold font-[var(--font-display)] text-white tabular-nums">
+                      {Math.round((totalFat / targetFat) * 100)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Macro 3: Karbohidrat Circular Gauge */}
+              <div className="p-4 rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex items-center justify-between gap-4">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="p-1 rounded-[6px] bg-[#9B7CF6]/15 text-[#9B7CF6]">
+                      <Zap className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                      Karbohidrat Harian
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold font-[var(--font-display)] text-white tabular-nums">
+                      {totalCarbs}g
+                    </span>
+                    <span className="text-[11px] text-[var(--text-secondary)]">/ {targetCarbs}g</span>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-tertiary)] block">
+                    Sisa {Math.max(0, targetCarbs - totalCarbs)}g lagi (Energi glikogen)
+                  </span>
+                </div>
+
+                <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="38" stroke="#262934" strokeWidth="10" fill="transparent" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke="#9B7CF6"
+                      strokeWidth="10"
+                      strokeDasharray="238.7"
+                      strokeDashoffset={238.7 * (1 - Math.min(100, Math.round((totalCarbs / targetCarbs) * 100)) / 100)}
+                      strokeLinecap="round"
+                      fill="transparent"
+                      className="transition-all duration-700 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-sm font-bold font-[var(--font-display)] text-white tabular-nums">
+                      {Math.round((totalCarbs / targetCarbs) * 100)}%
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

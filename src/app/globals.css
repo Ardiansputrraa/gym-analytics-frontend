@@ -1,39 +1,47 @@
 @import "tailwindcss";
 
 @theme {
-  --color-iron-900: #1C1C1A;
-  --color-iron-700: #2B2A27;
-  --color-iron-500: #54514C;
-  --color-iron-surface-raised: #333230;
-  --color-chalk-100: #F2EFE6;
-  --color-chalk-300: #DAD5C7;
-  --color-text-tertiary: #8B8880;
-  --color-oxide-600: #C1401F;
-  --color-brass-500: #A9822C;
-  --color-moss-600: #4C6B4F;
-  --color-danger: #D14A3E;
+  --color-dark-900: #121316;
+  --color-dark-700: #1E2027;
+  --color-dark-500: #262934;
+  --color-border-default: #2C303B;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #9AA0B0;
+  --color-text-tertiary: #646A7C;
+  --color-orange-500: #FF6B2C;
+  --color-orange-600: #FF5A1E;
+  --color-cyan-400: #4CD6DE;
+  --color-purple-400: #9B7CF6;
+  --color-warning: #FFA726;
+  --color-danger: #FF4D4D;
 
   --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
   --font-body: var(--font-public-sans), -apple-system, "Segoe UI", sans-serif;
 
-  --radius-sm: 6px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
   --radius-pill: 999px;
 }
 
 :root {
-  --bg-base: #1C1C1A;
-  --bg-surface: #2B2A27;
-  --bg-surface-raised: #333230;
-  --border-default: #54514C;
-  --text-primary: #F2EFE6;
-  --text-secondary: #DAD5C7;
-  --text-tertiary: #8B8880;
-  --accent-primary: #C1401F;
-  --accent-primary-ink: #F2EFE6;
-  --accent-secondary: #A9822C;
-  --accent-neutral-positive: #4C6B4F;
-  --danger: #D14A3E;
-  --focus-ring: #F2EFE6;
+  --bg-base: #121316;
+  --bg-surface: #1E2027;
+  --bg-surface-raised: #262934;
+  --border-default: #2C303B;
+  --border-subtle: #242731;
+  --text-primary: #FFFFFF;
+  --text-secondary: #9AA0B0;
+  --text-tertiary: #646A7C;
+  --accent-primary: #FF6B2C;
+  --accent-primary-hover: #FF5A1E;
+  --accent-primary-ink: #FFFFFF;
+  --accent-cyan: #4CD6DE;
+  --accent-purple: #9B7CF6;
+  --accent-secondary: #FFA726;
+  --accent-neutral-positive: #4CD6DE;
+  --danger: #FF4D4D;
+  --focus-ring: #FF6B2C;
 }
 
 html,

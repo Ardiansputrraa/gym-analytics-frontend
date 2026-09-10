@@ -29,15 +29,15 @@ export const Sidebar: React.FC = () => {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3.5 py-3 rounded-[6px] text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-4 py-3 rounded-[14px] text-sm font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-default)] font-semibold'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50',
+                  ? 'bg-[var(--bg-surface)] text-white border border-[var(--border-default)] font-semibold shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-surface)]/60',
               )}
             >
               <Icon
                 className={cn(
-                  'w-5 h-5 shrink-0',
+                  'w-5 h-5 shrink-0 transition-colors',
                   isActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-tertiary)]',
                 )}
               />
@@ -48,11 +48,24 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Bottom info section */}
-      <div className="mt-auto p-3.5 border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] text-xs space-y-1">
-        <span className="font-semibold text-[var(--accent-secondary)]">Prinsip Iron Ledger</span>
-        <p className="text-[var(--text-tertiary)] text-[11px] leading-relaxed">
-          Track → Calculate → Analyze → Visualize → Improve.
-        </p>
+      <div className="mt-auto space-y-3">
+        <div className="p-3.5 border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[14px] text-xs space-y-1">
+          <span className="font-semibold text-[var(--accent-secondary)]">Prinsip GYM ANALYTICS</span>
+          <p className="text-[var(--text-tertiary)] text-[11px] leading-relaxed">
+            Track → Calculate → Analyze → Visualize → Improve.
+          </p>
+        </div>
+        <div className="text-[11px] text-[var(--text-tertiary)] text-center px-1">
+          Developed by{' '}
+          <a
+            href="https://www.linkedin.com/in/ardiansputrraa"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-[var(--accent-primary)] hover:underline"
+          >
+            Fani Muh Ardian Saputra
+          </a>
+        </div>
       </div>
     </aside>
   );

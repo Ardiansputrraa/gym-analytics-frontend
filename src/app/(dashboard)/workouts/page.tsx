@@ -472,19 +472,19 @@ export default function WorkoutsPage() {
       {activeTab === 'SESSIONS' && (
         <div className="space-y-6">
           {/* Global Timeframe Selector: Hari Ini | 7 Hari | Sebulan | 1 Tahun */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)]">
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1.5 mr-2">
                 <Calendar className="w-4 h-4 text-[var(--accent-primary)]" />
-                <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                  Periode Analitik:
+                <span className="text-xs font-bold text-[var(--text-secondary)]">
+                  Periode analitik:
                 </span>
               </div>
 
               <div className="grid grid-cols-2 sm:flex rounded-[6px] bg-[var(--bg-base)] p-1 gap-1 border border-[var(--border-default)] w-full sm:w-auto">
                 {[
-                  { key: 'TODAY', label: 'Hari Ini' },
-                  { key: 'WEEK', label: '7 Hari Terakhir' },
+                  { key: 'TODAY', label: 'Hari ini' },
+                  { key: 'WEEK', label: '7 Hari terakhir' },
                   { key: 'MONTH', label: 'Sebulan' },
                   { key: 'YEAR', label: `1 Tahun (${selectedYear})` },
                 ].map((tab) => (
@@ -494,7 +494,7 @@ export default function WorkoutsPage() {
                     onClick={() => setTimeframe(tab.key as WorkoutTimeframe)}
                     className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all cursor-pointer text-center ${
                       timeframe === tab.key
-                        ? 'bg-[var(--accent-primary)] text-white font-bold shadow-sm'
+                        ? 'bg-[var(--accent-primary)] text-white font-bold'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
@@ -507,13 +507,13 @@ export default function WorkoutsPage() {
             {/* 5-YEAR FILTER when 'YEAR' is selected */}
             {timeframe === 'YEAR' && (
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <span className="text-xs text-[var(--text-secondary)] font-medium">Pilih Tahun:</span>
+                <span className="text-xs text-[var(--text-secondary)] font-medium">Pilih tahun:</span>
                 <div className="relative">
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
                     aria-label="Pilih Tahun Riwayat Workout"
-                    className="pl-3 pr-8 py-1.5 rounded-[4px] border border-[var(--accent-primary)]/50 bg-[var(--bg-base)] text-xs text-[var(--text-primary)] font-semibold focus:outline-none cursor-pointer appearance-none shadow-sm"
+                    className="pl-3 pr-8 py-1.5 rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-base)] text-xs text-[var(--text-primary)] font-semibold focus:outline-none cursor-pointer appearance-none"
                   >
                     {AVAILABLE_YEARS.map((yr) => (
                       <option key={yr} value={yr}>
@@ -557,7 +557,7 @@ export default function WorkoutsPage() {
                       value={selectedMonthPart}
                       onChange={(e) => setSelectedMonthPart(e.target.value)}
                       aria-label="Pilih Bulan"
-                      className="pl-2.5 pr-7 py-1.5 rounded-[4px] border border-[var(--accent-primary)]/50 bg-[var(--bg-base)] text-xs text-[var(--text-primary)] font-semibold focus:outline-none cursor-pointer appearance-none shadow-sm"
+                      className="pl-2.5 pr-7 py-1.5 rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-base)] text-xs text-[var(--text-primary)] font-semibold focus:outline-none cursor-pointer appearance-none"
                     >
                       {MONTH_NAMES.map((m) => (
                         <option key={m.num} value={m.num}>
@@ -575,7 +575,7 @@ export default function WorkoutsPage() {
           {/* 6 Hero Analytics KPI Cards for Selected Timeframe */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <MetricCard
-              label="Total Volume"
+              label="Total volume"
               value={formatNumber(aggregatedStats.totalVolume)}
               unit="kg"
               trend={{
@@ -588,31 +588,31 @@ export default function WorkoutsPage() {
             />
 
             <MetricCard
-              label="Sesi Latihan"
+              label="Sesi latihan"
               value={aggregatedStats.sessionCount}
               unit="Sesi"
-              subValue={`${aggregatedStats.totalSets} Total Set`}
+              subValue={`${aggregatedStats.totalSets} total set`}
               icon={<Dumbbell className="w-4 h-4 text-[var(--accent-primary)]" />}
             />
 
             <MetricCard
-              label="Durasi Latihan"
+              label="Durasi latihan"
               value={aggregatedStats.totalDuration}
               unit="menit"
-              subValue={`~${(aggregatedStats.totalDuration / 60).toFixed(1)} Jam`}
+              subValue={`~${(aggregatedStats.totalDuration / 60).toFixed(1)} jam`}
               icon={<Clock className="w-4 h-4 text-sky-400" />}
             />
 
             <MetricCard
-              label="Rasio Aktif"
+              label="Rasio aktif"
               value={`${aggregatedStats.activeDensity}%`}
               unit="Aktif"
-              subValue="Work / Rest Density"
+              subValue="Work / Rest density"
               icon={<Sparkles className="w-4 h-4 text-amber-400" />}
             />
 
             <MetricCard
-              label="Kardio & Jarak"
+              label="Kardio & jarak"
               value={aggregatedStats.totalCardio}
               unit="min"
               subValue={`${aggregatedStats.totalDistance} km · ~${aggregatedStats.totalCalories} kkal`}
@@ -620,7 +620,7 @@ export default function WorkoutsPage() {
             />
 
             <MetricCard
-              label="Rekor PR Baru"
+              label="Rekor PR baru"
               value={aggregatedStats.prCount}
               unit="PR"
               subValue="Tercatat periode ini"
@@ -629,12 +629,12 @@ export default function WorkoutsPage() {
           </div>
 
           {/* Telemetry Visual Analytics Chart Card */}
-          <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[8px] p-5 shadow-xl space-y-4">
+          <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-default)]/60 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-[var(--accent-primary)]" />
-                  Grafik Telemetri Kinerja ({timeframe === 'TODAY' ? 'Hari Ini' : timeframe === 'WEEK' ? '7 Hari Terakhir' : timeframe === 'MONTH' ? `Bulan ${MONTH_NAMES.find(m => m.num === selectedMonthPart)?.name} ${selectedYear}` : `Tahun ${selectedYear}`})
+                  Grafik telemetri kinerja ({timeframe === 'TODAY' ? 'Hari ini' : timeframe === 'WEEK' ? '7 Hari terakhir' : timeframe === 'MONTH' ? `Bulan ${MONTH_NAMES.find(m => m.num === selectedMonthPart)?.name} ${selectedYear}` : `Tahun ${selectedYear}`})
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
                   Analisis beban volume, rasio waktu latihan aktif vs istirahat, dan durasi kardio.
@@ -648,7 +648,7 @@ export default function WorkoutsPage() {
                   onClick={() => setChartMetric('VOLUME')}
                   className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
                     chartMetric === 'VOLUME'
-                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      ? 'bg-[var(--accent-primary)] text-white font-bold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
@@ -659,7 +659,7 @@ export default function WorkoutsPage() {
                   onClick={() => setChartMetric('DENSITY')}
                   className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
                     chartMetric === 'DENSITY'
-                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      ? 'bg-[var(--accent-primary)] text-white font-bold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
@@ -670,7 +670,7 @@ export default function WorkoutsPage() {
                   onClick={() => setChartMetric('DURATION')}
                   className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
                     chartMetric === 'DURATION'
-                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      ? 'bg-[var(--accent-primary)] text-white font-bold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
@@ -683,7 +683,7 @@ export default function WorkoutsPage() {
             <div className="h-64 w-full pt-1">
               <ResponsiveContainer width="100%" height="100%">
                 {chartMetric === 'VOLUME' ? (
-                  <BarChart
+                  <AreaChart
                     data={
                       timeframe === 'YEAR'
                         ? yearlyTrendChartData
@@ -693,47 +693,67 @@ export default function WorkoutsPage() {
                     }
                     margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333330" vertical={false} />
-                    <XAxis dataKey="label" stroke="#888880" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888880" fontSize={10} tickLine={false} axisLine={false} />
+                    <defs>
+                      <linearGradient id="workoutVolumeGlow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FF6B2C" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#FF6B2C" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                    <XAxis dataKey="label" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip
+                      cursor={{ stroke: '#FF6B2C', strokeDasharray: '3 3', strokeWidth: 1.5 }}
                       contentStyle={{
-                        backgroundColor: '#181816',
-                        borderColor: '#333330',
-                        borderRadius: '6px',
-                        color: '#F4F4F0',
+                        backgroundColor: '#1E2027',
+                        borderColor: '#2C303B',
+                        borderRadius: '14px',
+                        color: '#FFFFFF',
                         fontSize: '12px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
+                      labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
                       formatter={(v: unknown) => [`${formatNumber(v as number)} kg`, 'Volume Beban']}
                     />
-                    <Bar dataKey="volume" fill="#F05A28" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                  </BarChart>
+                    <Area
+                      type="monotone"
+                      dataKey="volume"
+                      stroke="#FF6B2C"
+                      strokeWidth={3}
+                      fill="url(#workoutVolumeGlow)"
+                      dot={{ r: 4, fill: '#FF6B2C', stroke: '#121316', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#FF6B2C', stroke: '#FFFFFF', strokeWidth: 2 }}
+                    />
+                  </AreaChart>
                 ) : chartMetric === 'DENSITY' ? (
                   <BarChart
                     data={weeklyTrendChartData}
                     margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333330" vertical={false} />
-                    <XAxis dataKey="label" stroke="#888880" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888880" fontSize={10} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                    <XAxis dataKey="label" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip
+                      cursor={{ fill: 'rgba(255, 255, 255, 0.04)', radius: 8 }}
                       contentStyle={{
-                        backgroundColor: '#181816',
-                        borderColor: '#333330',
-                        borderRadius: '6px',
-                        color: '#F4F4F0',
+                        backgroundColor: '#1E2027',
+                        borderColor: '#2C303B',
+                        borderRadius: '14px',
+                        color: '#FFFFFF',
                         fontSize: '12px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
+                      labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
                       formatter={(v: unknown, name: unknown) => [
                         `${v} menit`,
                         name === 'activeMin' ? 'Waktu Angkat Aktif' : 'Waktu Istirahat (Rest)',
                       ]}
                     />
-                    <Bar dataKey="activeMin" stackId="a" fill="#4A6B4A" name="Waktu Aktif (min)" />
-                    <Bar dataKey="restMin" stackId="a" fill="#F05A28" radius={[4, 4, 0, 0]} name="Waktu Istirahat (min)" />
+                    <Bar dataKey="activeMin" stackId="a" fill="#4CD6DE" name="Waktu Aktif (min)" />
+                    <Bar dataKey="restMin" stackId="a" fill="#FF6B2C" radius={[6, 6, 0, 0]} name="Waktu Istirahat (min)" />
                   </BarChart>
                 ) : (
-                  <LineChart
+                  <AreaChart
                     data={
                       timeframe === 'YEAR'
                         ? yearlyTrendChartData
@@ -743,27 +763,38 @@ export default function WorkoutsPage() {
                     }
                     margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333330" vertical={false} />
-                    <XAxis dataKey="label" stroke="#888880" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#888880" fontSize={10} tickLine={false} axisLine={false} />
+                    <defs>
+                      <linearGradient id="workoutDurationGlow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4CD6DE" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#4CD6DE" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                    <XAxis dataKey="label" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip
+                      cursor={{ stroke: '#4CD6DE', strokeDasharray: '3 3', strokeWidth: 1.5 }}
                       contentStyle={{
-                        backgroundColor: '#181816',
-                        borderColor: '#333330',
-                        borderRadius: '6px',
-                        color: '#F4F4F0',
+                        backgroundColor: '#1E2027',
+                        borderColor: '#2C303B',
+                        borderRadius: '14px',
+                        color: '#FFFFFF',
                         fontSize: '12px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
+                      labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
                     />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey={timeframe === 'YEAR' ? 'sessions' : 'activeMin'}
-                      stroke="#38BDF8"
+                      stroke="#4CD6DE"
                       strokeWidth={3}
-                      dot={{ r: 4 }}
+                      fill="url(#workoutDurationGlow)"
+                      dot={{ r: 4, fill: '#4CD6DE', stroke: '#121316', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#4CD6DE', stroke: '#FFFFFF', strokeWidth: 2 }}
                       name={timeframe === 'YEAR' ? 'Jumlah Sesi' : 'Durasi Latihan (min)'}
                     />
-                  </LineChart>
+                  </AreaChart>
                 )}
               </ResponsiveContainer>
             </div>
@@ -776,7 +807,7 @@ export default function WorkoutsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)]">
-                  Daftar Sesi Latihan Terfilter ({filteredWorkouts.length} Sesi)
+                  Daftar sesi latihan terfilter ({filteredWorkouts.length} sesi)
                 </h2>
                 <p className="text-xs text-[var(--text-secondary)]">
                   Sesi workout yang diselesaikan dalam periode ini.
@@ -785,15 +816,15 @@ export default function WorkoutsPage() {
             </div>
 
             {filteredWorkouts.length === 0 ? (
-              <div className="p-8 text-center rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3">
+              <div className="p-8 text-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3">
                 <Dumbbell className="w-8 h-8 text-[var(--text-tertiary)] mx-auto" />
-                <h4 className="text-sm font-bold text-[var(--text-primary)]">Tidak Ada Sesi di Periode Ini</h4>
+                <h4 className="text-sm font-bold text-[var(--text-primary)]">Tidak ada sesi di periode ini</h4>
                 <p className="text-xs text-[var(--text-secondary)]">
                   Belum ada catatan latihan yang tercatat pada rentang waktu yang dipilih.
                 </p>
                 <Link href="/workouts/active">
                   <Button variant="primary" size="sm">
-                    + Mulai Latihan Sekarang
+                    + Mulai latihan sekarang
                   </Button>
                 </Link>
               </div>
@@ -803,7 +834,7 @@ export default function WorkoutsPage() {
                   {paginatedWorkouts.map((workout) => (
                     <div
                       key={workout.id}
-                      className="p-4 sm:p-5 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--accent-primary)]/50 transition-all space-y-4 shadow-lg"
+                      className="p-4 sm:p-5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--accent-primary)]/50 transition-colors space-y-4"
                     >
                       {/* Session Header Card */}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[var(--border-default)]/60 pb-3">
@@ -829,7 +860,7 @@ export default function WorkoutsPage() {
 
                         <div className="flex items-center gap-4 sm:gap-6 justify-between md:justify-end">
                           <div className="text-left md:text-right">
-                            <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold block">
+                            <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
                               Volume
                             </span>
                             <span className="text-sm sm:text-base font-bold font-[var(--font-display)] tabular-nums text-[var(--text-primary)]">
@@ -838,7 +869,7 @@ export default function WorkoutsPage() {
                           </div>
 
                           <div className="text-left md:text-right">
-                            <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-bold block">
+                            <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
                               Durasi
                             </span>
                             <span className="text-sm sm:text-base font-bold font-[var(--font-display)] tabular-nums text-[var(--color-moss-600)]">
@@ -857,8 +888,8 @@ export default function WorkoutsPage() {
 
                       {/* Exercise Breakdown per Alat */}
                       <div className="space-y-2">
-                        <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block">
-                          Rincian Alat & Gerakan ({workout.exercises.length} Gerakan):
+                        <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
+                          Rincian alat & gerakan ({workout.exercises.length} gerakan):
                         </span>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -878,7 +909,7 @@ export default function WorkoutsPage() {
                               </div>
 
                               <div className="text-right shrink-0">
-                                <span className="text-[9px] uppercase font-bold text-[var(--text-tertiary)] block">
+                                <span className="text-[9px] font-bold text-[var(--text-tertiary)] block">
                                   Best Set
                                 </span>
                                 <span className="font-bold font-mono text-[var(--accent-secondary)]">
@@ -951,7 +982,7 @@ export default function WorkoutsPage() {
                   onClick={() => setMuscleFilter(cat)}
                   className={`px-3 py-2 rounded-[6px] text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
                     muscleFilter === cat
-                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-sm'
+                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white font-bold'
                       : 'bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
@@ -966,7 +997,7 @@ export default function WorkoutsPage() {
             {paginatedLibrary.map((ex) => (
               <div
                 key={ex.id}
-                className="p-4 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3 shadow-md hover:border-[var(--accent-primary)]/40 transition-all flex flex-col justify-between"
+                className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3 hover:border-[var(--accent-primary)]/40 transition-colors flex flex-col justify-between"
               >
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-2">

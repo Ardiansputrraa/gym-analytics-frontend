@@ -10,6 +10,7 @@ export interface UpsertProfileDto {
   fitnessGoal: FitnessGoal;
   dietPace: DietPace;
   checkInIntervalDays?: number;
+  waterTargetMl?: number;
 }
 
 export const profileService = {

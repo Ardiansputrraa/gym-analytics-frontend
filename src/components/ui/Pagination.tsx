@@ -107,7 +107,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           type="button"
           onClick={() => onPageChange(1)}
           disabled={currentPage <= 1}
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[5px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-base)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-surface-raised)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
           title="Halaman Pertama"
         >
           <ChevronsLeft className="w-4 h-4" />
@@ -118,7 +118,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[5px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-base)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-surface-raised)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
           title="Halaman Sebelumnya"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -147,10 +147,10 @@ export const Pagination: React.FC<PaginationProps> = ({
                 type="button"
                 onClick={() => onPageChange(pageNum)}
                 className={cn(
-                  'min-w-[32px] h-8 sm:min-w-[36px] sm:h-9 px-2 rounded-[5px] text-xs sm:text-sm font-bold font-mono tabular-nums transition-all cursor-pointer flex items-center justify-center active:scale-95',
+                  'min-w-[32px] h-8 sm:min-w-[36px] sm:h-9 px-2 rounded-[10px] text-xs sm:text-sm font-bold font-mono tabular-nums transition-all cursor-pointer flex items-center justify-center active:scale-95',
                   isActive
-                    ? 'bg-[var(--accent-primary)] text-white shadow-md font-bold scale-105 border border-[var(--accent-primary)]'
-                    : 'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)] hover:bg-[var(--bg-base)]',
+                    ? 'bg-[var(--accent-primary)] text-white shadow-md font-bold scale-105 border border-[var(--accent-primary)] shadow-[0_2px_10px_rgba(255,107,44,0.4)]'
+                    : 'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-tertiary)] hover:bg-[var(--bg-surface-raised)]',
                 )}
               >
                 {pageNum}
@@ -164,7 +164,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[5px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-base)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-surface-raised)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
           title="Halaman Selanjutnya"
         >
           <ChevronRight className="w-4 h-4" />
@@ -175,7 +175,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           type="button"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage >= totalPages}
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[5px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-base)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-surface-raised)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center shadow-sm active:scale-95"
           title="Halaman Terakhir"
         >
           <ChevronsRight className="w-4 h-4" />
