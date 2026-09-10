@@ -2,14 +2,22 @@ export type Gender = 'MALE' | 'FEMALE';
 
 export type ActivityLevel =
   | 'SEDENTARY'
-  | 'LIGHTLY_ACTIVE'
-  | 'MODERATELY_ACTIVE'
-  | 'VERY_ACTIVE'
-  | 'EXTRA_ACTIVE';
+  | 'LIGHT'
+  | 'MODERATE'
+  | 'ACTIVE'
+  | 'VERY_ACTIVE';
 
-export type FitnessGoal = 'WEIGHT_LOSS' | 'MAINTENANCE' | 'MUSCLE_GAIN';
+export type FitnessGoal = 'FAT_LOSS' | 'MAINTENANCE' | 'MUSCLE_GAIN';
 
 export type DietPace = 'RELAXED' | 'STANDARD' | 'EXTREME';
+
+export interface ProfileUser {
+  id: string;
+  email: string;
+  name: string;
+  phone?: string | null;
+  isAdmin: boolean;
+}
 
 export interface UserProfile {
   id: string;
@@ -23,6 +31,13 @@ export interface UserProfile {
   dietPace: DietPace;
   checkInIntervalDays: number;
   waterTargetMl?: number;
+  skeletalMuscleKg?: number | null;
+  bodyFatPct?: number | null;
+  bodyFatKg?: number | null;
+  fatFreeMassKg?: number | null;
+  waterContentKg?: number | null;
+  proteinKg?: number | null;
+  mineralKg?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,10 +46,13 @@ export interface CheckInStatus {
   needsUpdate: boolean;
   daysSinceLastUpdate: number;
   checkInIntervalDays: number;
-  lastUpdatedDate: string;
+  message?: string;
+  lastUpdatedDate?: string;
 }
 
 export interface ProfileResponse {
+  message?: string;
+  user?: ProfileUser;
   profile: UserProfile | null;
   checkInStatus: CheckInStatus | null;
 }

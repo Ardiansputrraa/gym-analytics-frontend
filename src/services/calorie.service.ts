@@ -7,19 +7,21 @@ export interface CaloriePreviewRequestDto {
   gender: Gender;
   heightCm: number;
   weightKg: number;
-  activityLevel: ActivityLevel;
   fitnessGoal: FitnessGoal;
-  dietPace: DietPace;
+  dietPace?: DietPace;
+  activityLevel?: ActivityLevel;
 }
 
 export const calorieService = {
   getTodayTarget: async (): Promise<DailyCalorieTarget | null> => {
-    const res = await apiClient.get('/calorie/target/today');
-    return res.data || res;
+    const res = await apiClient.get<any>('/calorie/target/today');
+    const unwrapped = res?.data !== undefined ? res.data : res;
+    return unwrapped as DailyCalorieTarget | null;
   },
 
   calculatePreview: async (data: CaloriePreviewRequestDto): Promise<CaloriePreviewResult> => {
-    const res = await apiClient.post('/calorie/preview', data);
-    return res.data || res;
+    const res = await apiClient.post<any>('/calorie/preview', data);
+    const unwrapped = res?.data !== undefined ? res.data : res;
+    return unwrapped as CaloriePreviewResult;
   },
 };
