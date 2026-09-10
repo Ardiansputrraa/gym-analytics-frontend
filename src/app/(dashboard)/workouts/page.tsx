@@ -8,10 +8,14 @@ import { Button } from '@/components/ui/Button';
 import { PRBadge } from '@/components/ui/PRBadge';
 import { Divider } from '@/components/ui/Divider';
 import { Pagination } from '@/components/ui/Pagination';
+import { Skeleton } from '@/components/ui/Skeleton';
 import {
   MASTER_EXERCISES_LIBRARY,
+  ExerciseMaster,
   MuscleGroupCategory,
 } from '@/types/workout.types';
+import { exerciseService } from '@/services/exercise.service';
+import { useDebounce } from '@/hooks/useDebounce';
 import {
   Plus,
   Calendar,
@@ -30,6 +34,7 @@ import {
   TrendingUp,
   Layers,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { formatNumber, formatDuration } from '@/lib/utils';
 import {
@@ -320,13 +325,68 @@ export default function WorkoutsPage() {
 
   // Exercise Library search & filter
   const [searchLibrary, setSearchLibrary] = useState('');
+  const debouncedLibrarySearch = useDebounce(searchLibrary, 350);
   const [muscleFilter, setMuscleFilter] = useState<'ALL' | MuscleGroupCategory>('ALL');
 
   // Pagination states
   const [sessionPage, setSessionPage] = useState(1);
   const [sessionPageSize, setSessionPageSize] = useState(4);
   const [libraryPage, setLibraryPage] = useState(1);
-  const [libraryPageSize, setLibraryPageSize] = useState(6);
+  const [libraryPageSize, setLibraryPageSize] = useState(12);
+  const [libraryItems, setLibraryItems] = useState<ExerciseMaster[]>([]);
+  const [libraryTotalItems, setLibraryTotalItems] = useState(0);
+  const [libraryTotalPages, setLibraryTotalPages] = useState(1);
+  const [isLibraryLoading, setIsLibraryLoading] = useState(false);
+
+  // Fetch library items from API
+  useEffect(() => {
+    let isCancelled = false;
+    const loadLibrary = async () => {
+      setIsLibraryLoading(true);
+      try {
+        const res = await exerciseService.getExercises({
+          page: libraryPage,
+          limit: libraryPageSize,
+          search: debouncedLibrarySearch,
+          muscleGroup: muscleFilter !== 'ALL' ? muscleFilter : undefined,
+        });
+
+        if (!isCancelled && res) {
+          setLibraryItems(res.items);
+          setLibraryTotalItems(res.pagination.totalItems);
+          setLibraryTotalPages(res.pagination.totalPages);
+        }
+      } catch {
+        // Fallback to static library if offline
+        const filtered = MASTER_EXERCISES_LIBRARY.filter((ex) => {
+          const matchSearch =
+            debouncedLibrarySearch === '' ||
+            ex.name.toLowerCase().includes(debouncedLibrarySearch.toLowerCase()) ||
+            ex.equipmentName.toLowerCase().includes(debouncedLibrarySearch.toLowerCase());
+          const matchMuscle = muscleFilter === 'ALL' || ex.primaryMuscle === muscleFilter;
+          return matchSearch && matchMuscle;
+        });
+        if (!isCancelled) {
+          const start = (libraryPage - 1) * libraryPageSize;
+          setLibraryItems(filtered.slice(start, start + libraryPageSize));
+          setLibraryTotalItems(filtered.length);
+          setLibraryTotalPages(Math.max(1, Math.ceil(filtered.length / libraryPageSize)));
+        }
+      } finally {
+        if (!isCancelled) setIsLibraryLoading(false);
+      }
+    };
+
+    loadLibrary();
+    return () => {
+      isCancelled = true;
+    };
+  }, [libraryPage, libraryPageSize, debouncedLibrarySearch, muscleFilter]);
+
+  // Reset libraryPage when search or muscle filter changes
+  useEffect(() => {
+    setLibraryPage(1);
+  }, [debouncedLibrarySearch, muscleFilter]);
 
   // Filtered workout history based on active timeframe
   const filteredWorkouts = useMemo(() => {
@@ -354,11 +414,6 @@ export default function WorkoutsPage() {
     setSessionPage(1);
   }, [timeframe, selectedYear, selectedMonthPart]);
 
-  // Reset libraryPage when library filters change
-  useEffect(() => {
-    setLibraryPage(1);
-  }, [searchLibrary, muscleFilter]);
-
   // Paginated workouts
   const totalSessionPages = Math.ceil(filteredWorkouts.length / sessionPageSize) || 1;
   const paginatedWorkouts = useMemo(() => {
@@ -378,9 +433,10 @@ export default function WorkoutsPage() {
     const prCount = filteredWorkouts.filter((w) => w.hasPr).length;
     const totalSets = filteredWorkouts.reduce((acc, w) => acc + w.totalSets, 0);
 
-    const activeDensity = totalActive + totalRest > 0
-      ? Math.round((totalActive / (totalActive + totalRest)) * 100)
-      : 54;
+    const activeDensity =
+      totalActive + totalRest > 0
+        ? Math.round((totalActive / (totalActive + totalRest)) * 100)
+        : 54;
 
     return {
       totalVolume,
@@ -396,21 +452,6 @@ export default function WorkoutsPage() {
       sessionCount: filteredWorkouts.length,
     };
   }, [filteredWorkouts]);
-
-  const filteredLibrary = MASTER_EXERCISES_LIBRARY.filter((ex) => {
-    const matchSearch =
-      ex.name.toLowerCase().includes(searchLibrary.toLowerCase()) ||
-      ex.equipmentName.toLowerCase().includes(searchLibrary.toLowerCase());
-    const matchMuscle = muscleFilter === 'ALL' || ex.primaryMuscle === muscleFilter;
-    return matchSearch && matchMuscle;
-  });
-
-  // Paginated library
-  const totalLibraryPages = Math.ceil(filteredLibrary.length / libraryPageSize) || 1;
-  const paginatedLibrary = useMemo(() => {
-    const start = (libraryPage - 1) * libraryPageSize;
-    return filteredLibrary.slice(start, start + libraryPageSize);
-  }, [filteredLibrary, libraryPage, libraryPageSize]);
 
   return (
     <AppShell>
@@ -442,11 +483,10 @@ export default function WorkoutsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('SESSIONS')}
-          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-            activeTab === 'SESSIONS'
+          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'SESSIONS'
               ? 'bg-[var(--accent-primary)] text-white shadow-sm'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
+            }`}
         >
           <Activity className="w-3.5 h-3.5" />
           Riwayat & Analitik ({allWorkoutHistory.length})
@@ -455,11 +495,10 @@ export default function WorkoutsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('EXERCISE_LIBRARY')}
-          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
-            activeTab === 'EXERCISE_LIBRARY'
+          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'EXERCISE_LIBRARY'
               ? 'bg-[var(--accent-primary)] text-white shadow-sm'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
+            }`}
         >
           <Dumbbell className="w-3.5 h-3.5" />
           Katalog Alat ({MASTER_EXERCISES_LIBRARY.length})
@@ -492,11 +531,10 @@ export default function WorkoutsPage() {
                     key={tab.key}
                     type="button"
                     onClick={() => setTimeframe(tab.key as WorkoutTimeframe)}
-                    className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all cursor-pointer text-center ${
-                      timeframe === tab.key
+                    className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all cursor-pointer text-center ${timeframe === tab.key
                         ? 'bg-[var(--accent-primary)] text-white font-bold'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -646,33 +684,30 @@ export default function WorkoutsPage() {
                 <button
                   type="button"
                   onClick={() => setChartMetric('VOLUME')}
-                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
-                    chartMetric === 'VOLUME'
+                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${chartMetric === 'VOLUME'
                       ? 'bg-[var(--accent-primary)] text-white font-bold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
+                    }`}
                 >
                   Volume (kg)
                 </button>
                 <button
                   type="button"
                   onClick={() => setChartMetric('DENSITY')}
-                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
-                    chartMetric === 'DENSITY'
+                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${chartMetric === 'DENSITY'
                       ? 'bg-[var(--accent-primary)] text-white font-bold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
+                    }`}
                 >
                   Active vs Rest
                 </button>
                 <button
                   type="button"
                   onClick={() => setChartMetric('DURATION')}
-                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${
-                    chartMetric === 'DURATION'
+                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${chartMetric === 'DURATION'
                       ? 'bg-[var(--accent-primary)] text-white font-bold'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
+                    }`}
                 >
                   Total Durasi
                 </button>
@@ -688,8 +723,8 @@ export default function WorkoutsPage() {
                       timeframe === 'YEAR'
                         ? yearlyTrendChartData
                         : timeframe === 'MONTH'
-                        ? monthlyTrendChartData
-                        : weeklyTrendChartData
+                          ? monthlyTrendChartData
+                          : weeklyTrendChartData
                     }
                     margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                   >
@@ -758,8 +793,8 @@ export default function WorkoutsPage() {
                       timeframe === 'YEAR'
                         ? yearlyTrendChartData
                         : timeframe === 'MONTH'
-                        ? monthlyTrendChartData
-                        : weeklyTrendChartData
+                          ? monthlyTrendChartData
+                          : weeklyTrendChartData
                     }
                     margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                   >
@@ -949,8 +984,8 @@ export default function WorkoutsPage() {
       {/* ============================================================ */}
       {activeTab === 'EXERCISE_LIBRARY' && (
         <div className="space-y-6">
-          {/* Search & Muscle Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          {/* Top Bar: Search, Muscle Filters & Link to /exercises */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -960,84 +995,132 @@ export default function WorkoutsPage() {
                 onChange={(e) => setSearchLibrary(e.target.value)}
                 className="w-full h-11 pl-9 pr-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)]"
               />
+              {isLibraryLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-[var(--accent-primary)] animate-spin" />
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {(
-                [
-                  'ALL',
-                  'CHEST',
-                  'BACK',
-                  'LEGS',
-                  'SHOULDERS',
-                  'BICEPS',
-                  'TRICEPS',
-                  'CORE',
-                  'CARDIO',
-                ] as const
-              ).map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setMuscleFilter(cat)}
-                  className={`px-3 py-2 rounded-[6px] text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
-                    muscleFilter === cat
-                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white font-bold'
-                      : 'bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            <Link href="/exercises" className="shrink-0">
+              <Button variant="secondary" size="md" className="w-full sm:w-auto h-11 text-xs font-bold border-[var(--accent-primary)]/40 text-[var(--accent-primary)]">
+                <Plus className="w-4 h-4 mr-1.5" /> Buka Katalog & Buat Kustom
+              </Button>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {(
+              [
+                'ALL',
+                'CHEST',
+                'BACK',
+                'LEGS',
+                'SHOULDERS',
+                'BICEPS',
+                'TRICEPS',
+                'CORE',
+                'CARDIO',
+              ] as const
+            ).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setMuscleFilter(cat)}
+                className={`px-3 py-2 rounded-[6px] text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${muscleFilter === cat
+                    ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white font-bold'
+                    : 'bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
-                >
-                  {cat === 'ALL' ? 'Semua' : cat}
-                </button>
-              ))}
-            </div>
+              >
+                {cat === 'ALL' ? 'Semua Otot' : cat}
+              </button>
+            ))}
           </div>
 
           {/* Exercise Library Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginatedLibrary.map((ex) => (
-              <div
-                key={ex.id}
-                className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3 hover:border-[var(--accent-primary)]/40 transition-colors flex flex-col justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-base font-bold font-[var(--font-display)] text-[var(--text-primary)] leading-tight">
-                      {ex.name}
-                    </h4>
-                    <span className="px-2 py-0.5 rounded bg-[var(--bg-base)] border border-[var(--border-default)] text-[10px] font-bold text-[var(--accent-secondary)] shrink-0">
-                      {ex.primaryMuscleName}
-                    </span>
+          {isLibraryLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3 flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-5 w-32 rounded" />
+                      <Skeleton className="h-4 w-12 rounded" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-16 rounded" />
+                      <Skeleton className="h-4 w-20 rounded" />
+                    </div>
+                    <Skeleton className="h-8 w-full rounded mt-2" />
+                  </div>
+                  <Skeleton className="h-8 w-full rounded" />
+                </div>
+              ))}
+            </div>
+          ) : libraryItems.length === 0 ? (
+            <div className="p-12 text-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3">
+              <Dumbbell className="w-8 h-8 text-[var(--text-tertiary)] mx-auto" />
+              <h4 className="text-sm font-bold text-[var(--text-primary)]">Tidak ada gerakan yang cocok</h4>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Coba ubah kata kunci pencarian atau filter kelompok otot.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {libraryItems.map((ex) => (
+                <div
+                  key={ex.id}
+                  className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3 hover:border-[var(--accent-primary)]/40 transition-colors flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-base font-bold font-[var(--font-display)] text-[var(--text-primary)] leading-tight">
+                        {ex.name}
+                      </h4>
+                      {ex.isCustom ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                          Kustom
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-[var(--bg-base)] border border-[var(--border-default)] text-[10px] font-bold text-[var(--accent-secondary)] shrink-0">
+                          {ex.primaryMuscleName}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">
+                      {ex.description || 'Gerakan terverifikasi untuk pembentukan massa otot.'}
+                    </p>
                   </div>
 
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">
-                    {ex.description}
-                  </p>
+                  <div className="flex items-center justify-between pt-2 border-t border-[var(--border-default)]/60 text-xs">
+                    <span className="text-[11px] font-semibold text-sky-400">
+                      {ex.equipmentName}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-tertiary)] font-mono">
+                      {ex.primaryMuscle}
+                    </span>
+                  </div>
                 </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-[var(--border-default)]/60 text-xs">
-                  <span className="text-[11px] font-semibold text-sky-400">
-                    {ex.equipmentName}
-                  </span>
-                  <span className="text-[10px] text-[var(--text-tertiary)]">
-                    {ex.primaryMuscle}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Exercise Library Pagination */}
           <Pagination
             currentPage={libraryPage}
-            totalPages={totalLibraryPages}
-            totalItems={filteredLibrary.length}
+            totalPages={libraryTotalPages}
+            totalItems={libraryTotalItems}
             pageSize={libraryPageSize}
             onPageChange={setLibraryPage}
             onPageSizeChange={(newSize) => {
               setLibraryPageSize(newSize);
               setLibraryPage(1);
             }}
-            pageSizeOptions={[1, 5, 10, 15, 20]}
+            pageSizeOptions={[6, 9, 12, 18, 24]}
             itemLabel="gerakan & alat"
           />
         </div>

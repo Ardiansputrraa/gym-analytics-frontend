@@ -3,12 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Dumbbell, Utensils, Scale, User } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Utensils, Scale, User, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const navigationLinks = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Workouts', href: '/workouts', icon: Dumbbell },
+  { name: 'Katalog Gerakan', href: '/exercises', icon: BookOpen },
   { name: 'Nutrisi', href: '/nutrition', icon: Utensils },
   { name: 'Komposisi Tubuh', href: '/body-composition', icon: Scale },
   { name: 'Profil & Kalori', href: '/profile', icon: User },

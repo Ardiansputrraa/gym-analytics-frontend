@@ -5,6 +5,7 @@ import { AppShell } from '@/components/common/AppShell';
 import { Button } from '@/components/ui/Button';
 import { Divider } from '@/components/ui/Divider';
 import { EstimatedTag } from '@/components/ui/EstimatedTag';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Gender, ActivityLevel, FitnessGoal, DietPace } from '@/types/profile.types';
 import { profileService } from '@/services/profile.service';
 import { formatNumber, extractApiError } from '@/lib/utils';
@@ -419,9 +420,46 @@ export default function ProfilePage() {
   if (isPageLoading) {
     return (
       <AppShell>
-        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-primary)]" />
-          <p className="text-sm text-[var(--text-secondary)]">Memuat profil pengguna...</p>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-80 rounded" />
+            <Skeleton className="h-4 w-96 rounded" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="p-6 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-4">
+                <Skeleton className="h-6 w-48 rounded" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Skeleton className="h-10 w-full rounded" />
+                  <Skeleton className="h-10 w-full rounded" />
+                  <Skeleton className="h-10 w-full rounded" />
+                  <Skeleton className="h-10 w-full rounded" />
+                </div>
+              </div>
+              <div className="p-6 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-4">
+                <Skeleton className="h-6 w-56 rounded" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Skeleton className="h-16 w-full rounded" />
+                  <Skeleton className="h-16 w-full rounded" />
+                  <Skeleton className="h-16 w-full rounded" />
+                  <Skeleton className="h-16 w-full rounded" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-6 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-4">
+                <Skeleton className="h-6 w-40 rounded" />
+                <Skeleton className="h-32 w-full rounded" />
+                <div className="space-y-2 pt-2">
+                  <Skeleton className="h-4 w-full rounded" />
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                  <Skeleton className="h-4 w-5/6 rounded" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </AppShell>
     );
