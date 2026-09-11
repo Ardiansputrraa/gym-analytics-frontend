@@ -89,12 +89,15 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
       },
 
       getTotalRestSeconds: () => {
-        const { accumulatedRestSeconds, isRestTimerRunning, restTimerStartedAt } = get();
+        const { accumulatedRestSeconds, isRestTimerRunning, restTimerStartedAt, restTimerTargetSeconds } = get();
         if (!isRestTimerRunning || !restTimerStartedAt) {
           return accumulatedRestSeconds;
         }
-        const currentRestDuration = Math.floor((Date.now() - restTimerStartedAt) / 1000);
-        return accumulatedRestSeconds + Math.max(0, currentRestDuration);
+        const currentRestDuration = Math.min(
+          Math.max(0, Math.floor((Date.now() - restTimerStartedAt) / 1000)),
+          restTimerTargetSeconds || 30,
+        );
+        return accumulatedRestSeconds + currentRestDuration;
       },
 
       getActiveWorkSeconds: () => {
@@ -107,7 +110,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
         const { restTimerStartedAt, restTimerTargetSeconds, isRestTimerRunning } = get();
         if (!isRestTimerRunning || !restTimerStartedAt) return 0;
         const elapsed = Math.floor((Date.now() - restTimerStartedAt) / 1000);
-        return Math.max(0, restTimerTargetSeconds - elapsed);
+        return Math.max(0, (restTimerTargetSeconds || 30) - elapsed);
       },
 
       syncWithBackendActiveSession: async () => {
@@ -125,19 +128,62 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
                 activeSession: null,
                 startedAtTimestamp: null,
                 isTimerRunning: false,
+                accumulatedRestSeconds: 0,
+                isRestTimerRunning: false,
+                restTimerStartedAt: null,
               });
               return null;
             }
 
-            const { isTimerRunning, pausedAtTimestamp } = get();
+            const {
+              isTimerRunning,
+              pausedAtTimestamp,
+              isRestTimerRunning,
+              restTimerStartedAt,
+              restTimerTargetSeconds,
+              accumulatedRestSeconds,
+            } = get();
+
             const startMs = startDate.getTime();
             // If session was actively in progress, default to running (unless explicitly paused locally)
             const shouldRun = pausedAtTimestamp ? isTimerRunning : true;
+
+            // Handle rest timer expiration while user was away / logged out
+            let newIsRestTimerRunning = isRestTimerRunning;
+            let newRestTimerStartedAt = restTimerStartedAt;
+            let newAccumulatedRest = accumulatedRestSeconds;
+
+            if (isRestTimerRunning && restTimerStartedAt) {
+              const elapsedRest = Math.floor((Date.now() - restTimerStartedAt) / 1000);
+              const target = restTimerTargetSeconds || 30;
+              if (elapsedRest >= target) {
+                // Rest timer finished while user was away: cap at target and stop timer
+                newIsRestTimerRunning = false;
+                newRestTimerStartedAt = null;
+                newAccumulatedRest = accumulatedRestSeconds + target;
+              }
+            }
+
+            // Compute total rest recorded in completed sets
+            const completedSetsRest = (backendActive.exercises || []).reduce((sum, ex) => {
+              return (
+                sum +
+                (ex.sets || []).reduce((sSum, s) => {
+                  return s.isCompleted ? sSum + (s.restSeconds || 0) : sSum;
+                }, 0)
+              );
+            }, 0);
+
+            const finalRest = Math.max(newAccumulatedRest, completedSetsRest);
+
             set({
               activeSession: backendActive,
               startedAtTimestamp: startMs,
               isTimerRunning: shouldRun,
               pausedAtTimestamp: shouldRun ? null : pausedAtTimestamp,
+              isRestTimerRunning: newIsRestTimerRunning,
+              restTimerStartedAt: newRestTimerStartedAt,
+              accumulatedRestSeconds: finalRest,
             });
             return backendActive;
           } else {
@@ -148,6 +194,9 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
               isTimerRunning: false,
               pausedAtTimestamp: null,
               accumulatedPausedMs: 0,
+              accumulatedRestSeconds: 0,
+              isRestTimerRunning: false,
+              restTimerStartedAt: null,
             });
             return null;
           }
@@ -174,11 +223,21 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
         }
 
         const startMs = session.startedAt ? new Date(session.startedAt).getTime() : Date.now();
+        const completedSetsRest = (session.exercises || []).reduce((sum, ex) => {
+          return (
+            sum +
+            (ex.sets || []).reduce((sSum, s) => {
+              return s.isCompleted ? sSum + (s.restSeconds || 0) : sSum;
+            }, 0)
+          );
+        }, 0);
+
         set({
           activeSession: session,
           startedAtTimestamp: startMs,
           isTimerRunning: true,
           pausedAtTimestamp: null,
+          accumulatedRestSeconds: Math.max(get().accumulatedRestSeconds, completedSetsRest),
         });
       },
 
@@ -404,25 +463,31 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
       },
 
       stopRestTimer: () => {
-        const { isRestTimerRunning, restTimerStartedAt, accumulatedRestSeconds } = get();
+        const { isRestTimerRunning, restTimerStartedAt, accumulatedRestSeconds, restTimerTargetSeconds } = get();
         const extraRest = isRestTimerRunning && restTimerStartedAt
-          ? Math.floor((Date.now() - restTimerStartedAt) / 1000)
+          ? Math.min(
+              Math.max(0, Math.floor((Date.now() - restTimerStartedAt) / 1000)),
+              restTimerTargetSeconds || 30,
+            )
           : 0;
         set({
           isRestTimerRunning: false,
           restTimerStartedAt: null,
-          accumulatedRestSeconds: accumulatedRestSeconds + Math.max(0, extraRest),
+          accumulatedRestSeconds: accumulatedRestSeconds + extraRest,
         });
       },
 
       resetRestTimer: () => {
-        const { isRestTimerRunning, restTimerStartedAt, accumulatedRestSeconds, configuredRestTarget } = get();
+        const { isRestTimerRunning, restTimerStartedAt, accumulatedRestSeconds, restTimerTargetSeconds, configuredRestTarget } = get();
         const extraRest = isRestTimerRunning && restTimerStartedAt
-          ? Math.floor((Date.now() - restTimerStartedAt) / 1000)
+          ? Math.min(
+              Math.max(0, Math.floor((Date.now() - restTimerStartedAt) / 1000)),
+              restTimerTargetSeconds || 30,
+            )
           : 0;
         const target = configuredRestTarget || 30;
         set({
-          accumulatedRestSeconds: accumulatedRestSeconds + Math.max(0, extraRest),
+          accumulatedRestSeconds: accumulatedRestSeconds + extraRest,
           restTimerTargetSeconds: target,
           restTimerStartedAt: Date.now(),
           isRestTimerRunning: true,
