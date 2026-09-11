@@ -243,16 +243,16 @@ export default function WorkoutDetailPage() {
               </div>
             </div>
 
-            {/* Rasio Aktif */}
+            {/* Kepadatan Latihan (Work/Rest Density) */}
             <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)] p-3.5 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                  Rasio Aktif
+                  Kepadatan Set
                 </span>
                 <Activity className="w-4 h-4 text-emerald-400 opacity-80" />
               </div>
               <div className="text-xl font-bold text-[var(--text-primary)]">
-                {summary?.activeRatioPct || 0}%
+                {summary?.densityPct !== undefined ? summary.densityPct : (summary?.activeRatioPct || 0)}%
               </div>
               <div className="text-[11px] text-[var(--text-secondary)]">
                 Work/Rest density
