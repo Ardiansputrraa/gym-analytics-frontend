@@ -1,517 +1,534 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   WorkoutSession,
   WorkoutExerciseItem,
   WorkoutSetItem,
   ExerciseMaster,
 } from '@/types/workout.types';
+import { workoutService } from '@/services/workout.service';
 
 interface WorkoutSessionState {
   activeSession: WorkoutSession | null;
-  elapsedSeconds: number;
+  startedAtTimestamp: number | null; // Absolute epoch ms when started
   isTimerRunning: boolean;
-  restTimerSeconds: number;
-  restTimerTotal: number;
-  configuredRestTarget: number; // User configured default rest duration
-  isRestTimerRunning: boolean;
+  pausedAtTimestamp: number | null;
+  accumulatedPausedMs: number;
 
-  // Session Actions
-  startNewSession: (name?: string) => void;
+  // Rest Timer State (Absolute timestamp based)
+  restTimerTargetSeconds: number;
+  restTimerStartedAt: number | null;
+  isRestTimerRunning: boolean;
+  configuredRestTarget: number;
+  accumulatedRestSeconds: number;
+
+  // Initializer & Sync
+  syncWithBackendActiveSession: () => Promise<WorkoutSession | null>;
+  setActiveSession: (session: WorkoutSession | null) => void;
+  startNewSession: (name?: string, routineTemplateId?: string) => Promise<WorkoutSession>;
   setSessionName: (name: string) => void;
-  tickElapsed: () => void;
+
+  // Live Stopwatch
+  getElapsedSeconds: () => number;
+  getTotalRestSeconds: () => number;
+  getActiveWorkSeconds: () => number;
   toggleSessionTimer: () => void;
   pauseSessionTimer: () => void;
   resumeSessionTimer: () => void;
-  finishSession: () => void;
-  discardSession: () => void;
+  finishSession: () => Promise<any>;
+  discardSession: () => Promise<void>;
 
   // Exercise & Set management
-  addExerciseFromMaster: (exercise: ExerciseMaster) => string; // returns new exerciseId
-  removeExercise: (exerciseId: string) => void;
-  addSet: (exerciseId: string) => void;
-  removeSet: (exerciseId: string, setId: string) => void;
+  addExerciseFromMaster: (exercise: ExerciseMaster) => Promise<string>;
+  removeExercise: (exerciseId: string) => Promise<void>;
+  addSet: (exerciseId: string) => Promise<void>;
+  removeSet: (exerciseId: string, setId: string) => Promise<void>;
   updateSet: (
     exerciseId: string,
     setId: string,
     data: Partial<WorkoutSetItem>,
-  ) => void;
-  toggleSetCompleted: (exerciseId: string, setId: string) => void;
+  ) => Promise<void>;
+  toggleSetCompleted: (exerciseId: string, setId: string) => Promise<void>;
 
   // Rest Timer actions
+  getRestRemainingSeconds: () => number;
   setConfiguredRestTarget: (seconds: number) => void;
   startRestTimer: (seconds?: number) => void;
-  tickRestTimer: () => void;
-  toggleRestTimer: () => void;
+  stopRestTimer: () => void;
   resetRestTimer: () => void;
   addRestTimer15s: () => void;
   subRestTimer15s: () => void;
 }
 
-export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => ({
-  activeSession: {
-    id: `workout-${Date.now()}`,
-    name: 'Sesi Latihan Gym',
-    date: new Date().toISOString(),
-    status: 'IN_PROGRESS',
-    startedAt: new Date().toISOString(),
-    totalDurationSeconds: 0,
-    activeSeconds: 0,
-    restSeconds: 0,
-    totalVolumeKg: 0,
-    estimatedCaloriesBurned: 0,
-    exercises: [], // Clean empty start!
-  },
-  elapsedSeconds: 0,
-  isTimerRunning: false, // Timer stays idle until user starts workout!
-  restTimerSeconds: 60,
-  restTimerTotal: 60,
-  configuredRestTarget: 60, // Default 60 detik (1 menit), fully configurable
-  isRestTimerRunning: false,
-
-  startNewSession: (name = 'Sesi Latihan Gym') => {
-    set({
-      activeSession: {
-        id: `workout-${Date.now()}`,
-        name,
-        date: new Date().toISOString(),
-        status: 'IN_PROGRESS',
-        startedAt: new Date().toISOString(),
-        totalDurationSeconds: 0,
-        activeSeconds: 0,
-        restSeconds: 0,
-        totalVolumeKg: 0,
-        estimatedCaloriesBurned: 0,
-        exercises: [],
-      },
-      elapsedSeconds: 0,
-      isTimerRunning: false, // Do not auto-run until user starts
-      restTimerSeconds: 60,
-      restTimerTotal: 60,
-      isRestTimerRunning: false,
-    });
-  },
-
-  setSessionName: (name: string) => {
-    const { activeSession } = get();
-    if (!activeSession) return;
-    set({
-      activeSession: {
-        ...activeSession,
-        name,
-      },
-    });
-  },
-
-  tickElapsed: () => {
-    const { isTimerRunning, elapsedSeconds, activeSession, isRestTimerRunning } = get();
-    if (!isTimerRunning || !activeSession) return;
-    const nextElapsed = elapsedSeconds + 1;
-    const isResting = isRestTimerRunning;
-    const nextActive = isResting ? activeSession.activeSeconds : activeSession.activeSeconds + 1;
-    const nextRest = isResting ? activeSession.restSeconds + 1 : activeSession.restSeconds;
-
-    // Auto-update live cardio duration with exact second precision if active and not resting
-    let updatedExercises = activeSession.exercises;
-    if (!isResting) {
-      let hasCardioTick = false;
-      updatedExercises = activeSession.exercises.map((ex) => {
-        const isCardio =
-          ex.equipment === 'TREADMILL' ||
-          ex.muscleGroup === 'CARDIO' ||
-          ex.exerciseType === 'CARDIO_TREADMILL' ||
-          ex.exerciseType === 'CARDIO_GENERIC';
-
-        if (isCardio) {
-          const sets = ex.sets.map((s) => {
-            if (!s.isCompleted && !hasCardioTick) {
-              hasCardioTick = true;
-              const nextSecs = (s.durationSeconds ?? 0) + 1;
-              const speed = s.speedKmh ?? 6.0;
-              const incline = s.inclinePercentage ?? 0;
-              const dist = +((speed * (nextSecs / 3600))).toFixed(2);
-              const cals = Math.round((nextSecs / 60) * (5 + speed * 0.8 + incline * 0.5));
-              const paceDecimal = speed > 0 ? 60 / speed : 0;
-              const paceMin = Math.floor(paceDecimal);
-              const paceSec = Math.round((paceDecimal - paceMin) * 60);
-              const paceStr =
-                speed > 0 ? `${paceMin}:${paceSec < 10 ? '0' : ''}${paceSec}` : '--:--';
-
-              return {
-                ...s,
-                durationSeconds: nextSecs,
-                durationMinutes: +(nextSecs / 60).toFixed(2),
-                distanceKm: dist,
-                caloriesBurned: cals,
-                paceMinPerKm: paceStr,
-              };
-            }
-            return s;
-          });
-          return { ...ex, sets };
-        }
-        return ex;
-      });
-    }
-
-    set({
-      elapsedSeconds: nextElapsed,
-      activeSession: {
-        ...activeSession,
-        totalDurationSeconds: nextElapsed,
-        activeSeconds: nextActive,
-        restSeconds: nextRest,
-        exercises: updatedExercises,
-        estimatedCaloriesBurned: Math.round((nextElapsed / 60) * 5.5), // ~5.5 kcal/min
-      },
-    });
-  },
-
-  toggleSessionTimer: () => {
-    const { isTimerRunning } = get();
-    set({ isTimerRunning: !isTimerRunning });
-  },
-
-  pauseSessionTimer: () => set({ isTimerRunning: false }),
-  resumeSessionTimer: () => set({ isTimerRunning: true }),
-
-  finishSession: () => {
-    const { activeSession, elapsedSeconds } = get();
-    if (!activeSession) return;
-
-    // Calculate total volume
-    let totalVol = 0;
-    activeSession.exercises.forEach((ex) => {
-      ex.sets.forEach((s) => {
-        if (s.isCompleted) {
-          totalVol += s.weightKg * s.reps;
-        }
-      });
-    });
-
-    set({
-      activeSession: {
-        ...activeSession,
-        status: 'COMPLETED',
-        completedAt: new Date().toISOString(),
-        totalDurationSeconds: elapsedSeconds,
-        totalVolumeKg: totalVol,
-      },
-      isTimerRunning: false,
-    });
-  },
-
-  discardSession: () => {
-    set({
+export const useWorkoutSessionStore = create<WorkoutSessionState>()(
+  persist(
+    (set, get) => ({
       activeSession: null,
-      elapsedSeconds: 0,
+      startedAtTimestamp: null,
       isTimerRunning: false,
-      restTimerSeconds: 0,
+      pausedAtTimestamp: null,
+      accumulatedPausedMs: 0,
+
+      restTimerTargetSeconds: 30,
+      restTimerStartedAt: null,
       isRestTimerRunning: false,
-    });
-  },
+      configuredRestTarget: 30,
+      accumulatedRestSeconds: 0,
 
-  addExerciseFromMaster: (exercise: ExerciseMaster) => {
-    const { activeSession } = get();
-    if (!activeSession) return '';
+      getElapsedSeconds: () => {
+        const { startedAtTimestamp, isTimerRunning, pausedAtTimestamp, accumulatedPausedMs } = get();
+        if (!startedAtTimestamp) return 0;
 
-    const newExId = `ex-${Date.now()}`;
-    const isCardio = exercise.equipment === 'TREADMILL' || exercise.primaryMuscle === 'CARDIO';
-    const initialDuration = 20;
-    const initialIncline = exercise.id === 'ex-treadmill-incline-walk' ? 12.0 : 2.0;
-    const initialSpeed = exercise.id === 'ex-treadmill-incline-walk' ? 4.8 : 6.0;
-    const initialDistance = +((initialSpeed * initialDuration) / 60).toFixed(2);
-    const initialCalories = Math.round(initialDuration * (5 + initialSpeed * 0.8 + initialIncline * 0.5));
+        if (!isTimerRunning && pausedAtTimestamp) {
+          const effectiveRunningMs = pausedAtTimestamp - startedAtTimestamp - accumulatedPausedMs;
+          return Math.max(0, Math.floor(effectiveRunningMs / 1000));
+        }
 
-    const newExercise: WorkoutExerciseItem = {
-      id: newExId,
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      muscleGroup: exercise.primaryMuscle,
-      muscleGroupName: exercise.primaryMuscleName,
-      equipment: exercise.equipment,
-      equipmentName: exercise.equipmentName,
-      exerciseType: exercise.exerciseType || (isCardio ? 'CARDIO_TREADMILL' : 'STRENGTH'),
-      orderIndex: activeSession.exercises.length + 1,
-      sets: [
-        {
-          id: `set-${Date.now()}-1`,
-          setNumber: 1,
-          weightKg: isCardio ? 0 : 20,
-          reps: isCardio ? 0 : 10,
-          durationSeconds: isCardio ? 0 : undefined,
-          durationMinutes: isCardio ? 0 : undefined,
-          inclinePercentage: isCardio ? initialIncline : undefined,
-          speedKmh: isCardio ? initialSpeed : undefined,
-          distanceKm: isCardio ? 0 : undefined,
-          caloriesBurned: isCardio ? 0 : undefined,
-          isCompleted: false,
-        },
-      ],
-    };
-
-    set({
-      activeSession: {
-        ...activeSession,
-        exercises: [...activeSession.exercises, newExercise],
+        const effectiveRunningMs = Date.now() - startedAtTimestamp - accumulatedPausedMs;
+        return Math.max(0, Math.floor(effectiveRunningMs / 1000));
       },
-    });
 
-    return newExId;
-  },
-
-  removeExercise: (exerciseId: string) => {
-    const { activeSession } = get();
-    if (!activeSession) return;
-
-    const remaining = activeSession.exercises.filter((ex) => ex.id !== exerciseId);
-
-    set({
-      activeSession: {
-        ...activeSession,
-        exercises: remaining.map((ex, idx) => ({ ...ex, orderIndex: idx + 1 })),
+      getTotalRestSeconds: () => {
+        const { accumulatedRestSeconds, isRestTimerRunning, restTimerStartedAt, restTimerTargetSeconds } = get();
+        if (!isRestTimerRunning || !restTimerStartedAt) {
+          return accumulatedRestSeconds;
+        }
+        const currentRestDuration = Math.min(
+          Math.max(0, Math.floor((Date.now() - restTimerStartedAt) / 1000)),
+          restTimerTargetSeconds || 30,
+        );
+        return accumulatedRestSeconds + currentRestDuration;
       },
-    });
-  },
 
-  addSet: (exerciseId: string) => {
-    const { activeSession } = get();
-    if (!activeSession) return;
-
-    const targetEx = activeSession.exercises.find((ex) => ex.id === exerciseId);
-    if (!targetEx) return;
-
-    const lastSet = targetEx.sets[targetEx.sets.length - 1];
-    const newSetNumber = targetEx.sets.length + 1;
-    const isCardio = targetEx.equipment === 'TREADMILL' || targetEx.muscleGroup === 'CARDIO';
-
-    const newSet: WorkoutSetItem = {
-      id: `set-${Date.now()}-${newSetNumber}`,
-      setNumber: newSetNumber,
-      weightKg: isCardio ? 0 : (lastSet ? lastSet.weightKg : 20),
-      reps: isCardio ? 0 : (lastSet ? lastSet.reps : 10),
-      durationSeconds: isCardio ? 0 : undefined,
-      durationMinutes: isCardio ? 0 : undefined,
-      inclinePercentage: isCardio ? (lastSet?.inclinePercentage ?? 2.0) : undefined,
-      speedKmh: isCardio ? (lastSet?.speedKmh || 6.0) : undefined,
-      distanceKm: isCardio ? 0 : undefined,
-      caloriesBurned: isCardio ? 0 : undefined,
-      isCompleted: false,
-    };
-
-    const updatedExercises = activeSession.exercises.map((ex) => {
-      if (ex.id === exerciseId) {
-        return {
-          ...ex,
-          sets: [...ex.sets, newSet],
-        };
-      }
-      return ex;
-    });
-
-    set({
-      activeSession: {
-        ...activeSession,
-        exercises: updatedExercises,
+      getActiveWorkSeconds: () => {
+        const elapsed = get().getElapsedSeconds();
+        const rest = get().getTotalRestSeconds();
+        return Math.max(0, elapsed - rest);
       },
-    });
-  },
 
-  removeSet: (exerciseId: string, setId: string) => {
-    const { activeSession } = get();
-    if (!activeSession) return;
-
-    const updatedExercises = activeSession.exercises.map((ex) => {
-      if (ex.id === exerciseId) {
-        const filtered = ex.sets.filter((s) => s.id !== setId);
-        return {
-          ...ex,
-          sets: filtered.map((s, idx) => ({ ...s, setNumber: idx + 1 })),
-        };
-      }
-      return ex;
-    });
-
-    set({
-      activeSession: {
-        ...activeSession,
-        exercises: updatedExercises,
+      getRestRemainingSeconds: () => {
+        const { restTimerStartedAt, restTimerTargetSeconds, isRestTimerRunning } = get();
+        if (!isRestTimerRunning || !restTimerStartedAt) return 0;
+        const elapsed = Math.floor((Date.now() - restTimerStartedAt) / 1000);
+        return Math.max(0, (restTimerTargetSeconds || 30) - elapsed);
       },
-    });
-  },
 
-  updateSet: (exerciseId, setId, data) => {
-    const { activeSession } = get();
-    if (!activeSession) return;
+      syncWithBackendActiveSession: async () => {
+        try {
+          const backendActive = await workoutService.getActiveWorkout();
 
-    const updatedExercises = activeSession.exercises.map((ex) => {
-      if (ex.id === exerciseId) {
-        return {
-          ...ex,
-          sets: ex.sets.map((s) => {
-            if (s.id === setId) {
-              const merged = { ...s, ...data };
-              if (merged.durationMinutes !== undefined && merged.speedKmh !== undefined) {
-                merged.distanceKm = +((merged.speedKmh * merged.durationMinutes) / 60).toFixed(2);
-                const incline = merged.inclinePercentage ?? 0;
-                merged.caloriesBurned = Math.round(
-                  merged.durationMinutes * (5 + merged.speedKmh * 0.8 + incline * 0.5),
-                );
-                if (merged.speedKmh > 0) {
-                  const paceDecimal = 60 / merged.speedKmh;
-                  const paceMinutes = Math.floor(paceDecimal);
-                  const paceSeconds = Math.round((paceDecimal - paceMinutes) * 60);
-                  merged.paceMinPerKm = `${paceMinutes}:${paceSeconds < 10 ? '0' : ''}${paceSeconds}`;
-                }
+          // Check if expired from yesterday
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+
+          if (backendActive && backendActive.startedAt) {
+            const startDate = new Date(backendActive.startedAt);
+            if (startDate < todayStart) {
+              set({
+                activeSession: null,
+                startedAtTimestamp: null,
+                isTimerRunning: false,
+                accumulatedRestSeconds: 0,
+                isRestTimerRunning: false,
+                restTimerStartedAt: null,
+              });
+              return null;
+            }
+
+            const {
+              isTimerRunning,
+              pausedAtTimestamp,
+              isRestTimerRunning,
+              restTimerStartedAt,
+              restTimerTargetSeconds,
+              accumulatedRestSeconds,
+            } = get();
+
+            const startMs = startDate.getTime();
+            // If session was actively in progress, default to running (unless explicitly paused locally)
+            const shouldRun = pausedAtTimestamp ? isTimerRunning : true;
+
+            // Handle rest timer expiration while user was away / logged out
+            let newIsRestTimerRunning = isRestTimerRunning;
+            let newRestTimerStartedAt = restTimerStartedAt;
+            let newAccumulatedRest = accumulatedRestSeconds;
+
+            if (isRestTimerRunning && restTimerStartedAt) {
+              const elapsedRest = Math.floor((Date.now() - restTimerStartedAt) / 1000);
+              const target = restTimerTargetSeconds || 30;
+              if (elapsedRest >= target) {
+                // Rest timer finished while user was away: cap at target and stop timer
+                newIsRestTimerRunning = false;
+                newRestTimerStartedAt = null;
+                newAccumulatedRest = accumulatedRestSeconds + target;
               }
-              return merged;
             }
-            return s;
-          }),
-        };
-      }
-      return ex;
-    });
 
-    // Recompute total volume dynamically
-    let totalVol = 0;
-    updatedExercises.forEach((ex) => {
-      ex.sets.forEach((s) => {
-        if (s.isCompleted) {
-          totalVol += s.weightKg * s.reps;
+            // Compute total rest recorded in completed sets
+            const completedSetsRest = (backendActive.exercises || []).reduce((sum, ex) => {
+              return (
+                sum +
+                (ex.sets || []).reduce((sSum, s) => {
+                  return s.isCompleted ? sSum + (s.restSeconds || 0) : sSum;
+                }, 0)
+              );
+            }, 0);
+
+            const finalRest = Math.max(newAccumulatedRest, completedSetsRest);
+
+            set({
+              activeSession: backendActive,
+              startedAtTimestamp: startMs,
+              isTimerRunning: shouldRun,
+              pausedAtTimestamp: shouldRun ? null : pausedAtTimestamp,
+              isRestTimerRunning: newIsRestTimerRunning,
+              restTimerStartedAt: newRestTimerStartedAt,
+              accumulatedRestSeconds: finalRest,
+            });
+            return backendActive;
+          } else {
+            // No active session on server
+            set({
+              activeSession: null,
+              startedAtTimestamp: null,
+              isTimerRunning: false,
+              pausedAtTimestamp: null,
+              accumulatedPausedMs: 0,
+              accumulatedRestSeconds: 0,
+              isRestTimerRunning: false,
+              restTimerStartedAt: null,
+            });
+            return null;
+          }
+        } catch {
+          // If offline, check local activeSession
+          const { activeSession } = get();
+          return activeSession;
         }
-      });
-    });
-
-    set({
-      activeSession: {
-        ...activeSession,
-        exercises: updatedExercises,
-        totalVolumeKg: totalVol,
       },
-    });
-  },
 
-  toggleSetCompleted: (exerciseId, setId) => {
-    const { activeSession, startRestTimer } = get();
-    if (!activeSession) return;
-
-    let justCompleted = false;
-
-    const updatedExercises = activeSession.exercises.map((ex) => {
-      if (ex.id === exerciseId) {
-        return {
-          ...ex,
-          sets: ex.sets.map((s) => {
-            if (s.id === setId) {
-              const nextStatus = !s.isCompleted;
-              if (nextStatus) justCompleted = true;
-              return { ...s, isCompleted: nextStatus };
-            }
-            return s;
-          }),
-        };
-      }
-      return ex;
-    });
-
-    // Recompute total volume
-    let totalVol = 0;
-    updatedExercises.forEach((ex) => {
-      ex.sets.forEach((s) => {
-        if (s.isCompleted) {
-          totalVol += s.weightKg * s.reps;
+      setActiveSession: (session: WorkoutSession | null) => {
+        if (!session) {
+          set({
+            activeSession: null,
+            startedAtTimestamp: null,
+            isTimerRunning: false,
+            pausedAtTimestamp: null,
+            accumulatedPausedMs: 0,
+            isRestTimerRunning: false,
+            restTimerStartedAt: null,
+            accumulatedRestSeconds: 0,
+          });
+          return;
         }
-      });
-    });
 
-    set({
-      activeSession: {
-        ...activeSession,
-        exercises: updatedExercises,
-        totalVolumeKg: totalVol,
+        const startMs = session.startedAt ? new Date(session.startedAt).getTime() : Date.now();
+        const completedSetsRest = (session.exercises || []).reduce((sum, ex) => {
+          return (
+            sum +
+            (ex.sets || []).reduce((sSum, s) => {
+              return s.isCompleted ? sSum + (s.restSeconds || 0) : sSum;
+            }, 0)
+          );
+        }, 0);
+
+        set({
+          activeSession: session,
+          startedAtTimestamp: startMs,
+          isTimerRunning: true,
+          pausedAtTimestamp: null,
+          accumulatedRestSeconds: Math.max(get().accumulatedRestSeconds, completedSetsRest),
+        });
       },
-    });
 
-    // Auto trigger rest timer with configured rest target if a set was just checked as completed
-    if (justCompleted) {
-      const target = get().configuredRestTarget;
-      get().startRestTimer(target);
-      // Also ensure session timer is active
-      set({ isTimerRunning: true });
-    }
-  },
+      startNewSession: async (name = 'Sesi Latihan Gym', routineTemplateId?: string) => {
+        const nowMs = Date.now();
+        const res = await workoutService.startWorkout({ name, routineTemplateId });
+        set({
+          activeSession: res,
+          startedAtTimestamp: res.startedAt ? new Date(res.startedAt).getTime() : nowMs,
+          isTimerRunning: true, // Live session starts immediately
+          pausedAtTimestamp: null,
+          accumulatedPausedMs: 0,
+          isRestTimerRunning: false,
+          restTimerStartedAt: null,
+          accumulatedRestSeconds: 0,
+        });
+        return res;
+      },
 
-  // Rest Timer implementations
-  setConfiguredRestTarget: (seconds: number) => {
-    set({
-      configuredRestTarget: seconds,
-      restTimerSeconds: seconds,
-      restTimerTotal: seconds,
-    });
-  },
+      setSessionName: (name: string) => {
+        const { activeSession } = get();
+        if (!activeSession) return;
+        set({
+          activeSession: { ...activeSession, name },
+        });
+      },
 
-  startRestTimer: (seconds?: number) => {
-    const target = seconds ?? get().configuredRestTarget;
-    set({
-      restTimerSeconds: target,
-      restTimerTotal: target,
-      isRestTimerRunning: true,
-    });
-  },
+      toggleSessionTimer: () => {
+        const { isTimerRunning } = get();
+        if (isTimerRunning) {
+          get().pauseSessionTimer();
+        } else {
+          get().resumeSessionTimer();
+        }
+      },
 
-  tickRestTimer: () => {
-    const { restTimerSeconds, isRestTimerRunning } = get();
-    if (!isRestTimerRunning) return;
+      pauseSessionTimer: () => {
+        const { isTimerRunning } = get();
+        if (!isTimerRunning) return;
+        set({
+          isTimerRunning: false,
+          pausedAtTimestamp: Date.now(),
+        });
+      },
 
-    if (restTimerSeconds <= 1) {
-      set({ restTimerSeconds: 0, isRestTimerRunning: false });
-    } else {
-      set({ restTimerSeconds: restTimerSeconds - 1 });
-    }
-  },
+      resumeSessionTimer: () => {
+        const { isTimerRunning, pausedAtTimestamp, accumulatedPausedMs } = get();
+        if (isTimerRunning) return;
+        const now = Date.now();
+        const extraPausedMs = pausedAtTimestamp ? now - pausedAtTimestamp : 0;
+        set({
+          isTimerRunning: true,
+          pausedAtTimestamp: null,
+          accumulatedPausedMs: accumulatedPausedMs + extraPausedMs,
+        });
+      },
 
-  toggleRestTimer: () => {
-    const { isRestTimerRunning, restTimerSeconds, configuredRestTarget } = get();
-    if (!isRestTimerRunning && restTimerSeconds === 0) {
-      // If timer is 0 and user presses start, reset to target and start
-      set({
-        restTimerSeconds: configuredRestTarget,
-        restTimerTotal: configuredRestTarget,
-        isRestTimerRunning: true,
-      });
-    } else {
-      set({ isRestTimerRunning: !isRestTimerRunning });
-    }
-  },
+      finishSession: async () => {
+        const { activeSession } = get();
+        if (!activeSession) return null;
+        try {
+          const result = await workoutService.finishWorkout(activeSession.id);
+          get().setActiveSession(null);
+          return result;
+        } catch (err) {
+          console.error('Failed to finish workout:', err);
+          throw err;
+        }
+      },
 
-  resetRestTimer: () => {
-    const target = get().configuredRestTarget;
-    set({
-      restTimerSeconds: target,
-      restTimerTotal: target,
-      isRestTimerRunning: false,
-    });
-  },
+      discardSession: async () => {
+        const { activeSession } = get();
+        if (activeSession) {
+          try {
+            await workoutService.cancelWorkout(activeSession.id);
+          } catch (err) {
+            console.error('Failed to cancel workout:', err);
+          }
+        }
+        get().setActiveSession(null);
+      },
 
-  addRestTimer15s: () => {
-    const { restTimerSeconds, configuredRestTarget } = get();
-    const nextTarget = Math.max(15, (configuredRestTarget || 60) + 15);
-    set({
-      configuredRestTarget: nextTarget,
-      restTimerSeconds: restTimerSeconds + 15,
-      restTimerTotal: nextTarget,
-    });
-  },
+      addExerciseFromMaster: async (exercise: ExerciseMaster) => {
+        const { activeSession } = get();
+        if (!activeSession) {
+          const created = await get().startNewSession();
+          const added = await workoutService.addExercise(created.id, exercise.id);
+          await get().syncWithBackendActiveSession();
+          return added.id;
+        }
 
-  subRestTimer15s: () => {
-    const { restTimerSeconds, configuredRestTarget } = get();
-    const nextTarget = Math.max(15, (configuredRestTarget || 60) - 15);
-    const nextSeconds = Math.max(0, restTimerSeconds - 15);
-    set({
-      configuredRestTarget: nextTarget,
-      restTimerSeconds: nextSeconds,
-      restTimerTotal: nextTarget,
-      isRestTimerRunning: nextSeconds === 0 ? false : get().isRestTimerRunning,
-    });
-  },
-}));
+        const added = await workoutService.addExercise(activeSession.id, exercise.id);
+        await get().syncWithBackendActiveSession();
+        return added.id;
+      },
+
+      removeExercise: async (exerciseId: string) => {
+        const { activeSession } = get();
+        if (!activeSession) return;
+        await workoutService.removeExercise(activeSession.id, exerciseId);
+        await get().syncWithBackendActiveSession();
+      },
+
+      addSet: async (exerciseId: string) => {
+        const { activeSession } = get();
+        if (!activeSession) return;
+
+        const ex = activeSession.exercises.find((e) => e.exerciseId === exerciseId || e.id === exerciseId);
+        if (!ex) return;
+
+        const nextOrder = (ex.sets?.length || 0) + 1;
+        const lastSet = ex.sets?.[ex.sets.length - 1];
+
+        const eq = (ex.equipment || '').toUpperCase();
+        const type = (ex.exerciseType || '').toUpperCase();
+        const muscle = (ex.primaryMuscleName || ex.muscleGroupName || ex.muscleGroup || ex.primaryMuscle || '').toUpperCase();
+        const name = (ex.exerciseName || ex.name || '').toUpperCase();
+        const isCardio =
+          eq === 'TREADMILL' ||
+          eq === 'STATIONARY_BIKE' ||
+          eq === 'STAIR_MASTER' ||
+          eq === 'ROWING_MACHINE' ||
+          eq === 'ELLIPTICAL' ||
+          type === 'CARDIO_TREADMILL' ||
+          type === 'CARDIO_GENERIC' ||
+          muscle.includes('KARDIO') ||
+          muscle.includes('CARDIO') ||
+          name.includes('TREADMILL');
+
+        const defaultDurationMin = lastSet?.durationMinutes || 30;
+        const defaultSpeed = lastSet?.speedKmh ?? 4.8;
+        const defaultIncline = lastSet?.inclinePct ?? 0;
+        const defaultDist = (Number(defaultSpeed) * Number(defaultDurationMin)) / 60;
+        const defaultCal = Math.round(Number(defaultDurationMin) * (5 + Number(defaultSpeed) * 0.8 + Number(defaultIncline) * 0.5));
+
+        await workoutService.addSet(activeSession.id, {
+          workoutExerciseId: ex.id,
+          orderIndex: nextOrder,
+          weightKg: isCardio ? 0 : (lastSet ? lastSet.weightKg : 0),
+          reps: isCardio ? 0 : (lastSet ? lastSet.reps : 0),
+          durationSeconds: isCardio ? defaultDurationMin * 60 : 0,
+          inclinePct: isCardio ? defaultIncline : null,
+          speedKmh: isCardio ? defaultSpeed : null,
+          distanceKm: isCardio ? Number(defaultDist.toFixed(2)) : null,
+          caloriesBurned: isCardio ? defaultCal : null,
+          restSeconds: get().configuredRestTarget,
+          isCompleted: false,
+        });
+
+        await get().syncWithBackendActiveSession();
+      },
+
+      removeSet: async (exerciseId: string, setId: string) => {
+        await workoutService.removeSet(setId);
+        await get().syncWithBackendActiveSession();
+      },
+
+      updateSet: async (
+        exerciseId: string,
+        setId: string,
+        data: Partial<WorkoutSetItem>,
+      ) => {
+        // Optimistic update locally
+        const { activeSession } = get();
+        if (activeSession) {
+          const updatedExercises = activeSession.exercises.map((ex) => {
+            if (ex.id !== exerciseId && ex.exerciseId !== exerciseId) return ex;
+            return {
+              ...ex,
+              sets: ex.sets.map((s) => (s.id === setId ? { ...s, ...data } : s)),
+            };
+          });
+          set({ activeSession: { ...activeSession, exercises: updatedExercises } });
+        }
+
+        try {
+          await workoutService.updateSet(setId, data);
+        } catch (err) {
+          console.error('Failed to sync set update to backend:', err);
+        }
+      },
+
+      toggleSetCompleted: async (exerciseId: string, setId: string) => {
+        const { activeSession, configuredRestTarget } = get();
+        if (!activeSession) return;
+
+        const ex = activeSession.exercises.find((e) => e.id === exerciseId || e.exerciseId === exerciseId);
+        const currentSet = ex?.sets.find((s) => s.id === setId);
+        if (!currentSet) return;
+
+        const willBeCompleted = !currentSet.isCompleted;
+        const restDuration = configuredRestTarget || currentSet.restSeconds || 45;
+        const tut = currentSet.durationSeconds && currentSet.durationSeconds > 0
+          ? currentSet.durationSeconds
+          : Math.max(15, Math.round((Number(currentSet.reps) || 10) * 3.5));
+
+        // Optimistic update
+        await get().updateSet(exerciseId, setId, {
+          isCompleted: willBeCompleted,
+          completedAt: willBeCompleted ? new Date().toISOString() : null,
+          durationSeconds: willBeCompleted ? tut : currentSet.durationSeconds,
+          restSeconds: willBeCompleted ? restDuration : currentSet.restSeconds,
+        });
+
+        // Trigger rest timer if set was just completed
+        if (willBeCompleted) {
+          get().startRestTimer(restDuration);
+        }
+      },
+
+      setConfiguredRestTarget: (seconds: number) => {
+        const target = Math.max(15, seconds);
+        set({ configuredRestTarget: target, restTimerTargetSeconds: target });
+      },
+
+      startRestTimer: (seconds?: number) => {
+        const target = seconds || get().configuredRestTarget || 30;
+        set({
+          restTimerTargetSeconds: target,
+          restTimerStartedAt: Date.now(),
+          isRestTimerRunning: true,
+        });
+      },
+
+      stopRestTimer: () => {
+        const { isRestTimerRunning, restTimerStartedAt, accumulatedRestSeconds, restTimerTargetSeconds } = get();
+        const extraRest = isRestTimerRunning && restTimerStartedAt
+          ? Math.min(
+              Math.max(0, Math.floor((Date.now() - restTimerStartedAt) / 1000)),
+              restTimerTargetSeconds || 30,
+            )
+          : 0;
+        set({
+          isRestTimerRunning: false,
+          restTimerStartedAt: null,
+          accumulatedRestSeconds: accumulatedRestSeconds + extraRest,
+        });
+      },
+
+      resetRestTimer: () => {
+        const { isRestTimerRunning, restTimerStartedAt, accumulatedRestSeconds, restTimerTargetSeconds, configuredRestTarget } = get();
+        const extraRest = isRestTimerRunning && restTimerStartedAt
+          ? Math.min(
+              Math.max(0, Math.floor((Date.now() - restTimerStartedAt) / 1000)),
+              restTimerTargetSeconds || 30,
+            )
+          : 0;
+        const target = configuredRestTarget || 30;
+        set({
+          accumulatedRestSeconds: accumulatedRestSeconds + extraRest,
+          restTimerTargetSeconds: target,
+          restTimerStartedAt: Date.now(),
+          isRestTimerRunning: true,
+        });
+      },
+
+      addRestTimer15s: () => {
+        const { isRestTimerRunning, restTimerTargetSeconds, configuredRestTarget } = get();
+        if (!isRestTimerRunning) {
+          const next = (configuredRestTarget || 30) + 15;
+          set({ configuredRestTarget: next, restTimerTargetSeconds: next });
+        } else {
+          set({ restTimerTargetSeconds: restTimerTargetSeconds + 15 });
+        }
+      },
+
+      subRestTimer15s: () => {
+        const { isRestTimerRunning, restTimerTargetSeconds, configuredRestTarget } = get();
+        if (!isRestTimerRunning) {
+          const next = Math.max(15, (configuredRestTarget || 30) - 15);
+          set({ configuredRestTarget: next, restTimerTargetSeconds: next });
+        } else {
+          set({ restTimerTargetSeconds: Math.max(15, restTimerTargetSeconds - 15) });
+        }
+      },
+    }),
+    {
+      name: 'gym_active_workout_store',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        activeSession: state.activeSession,
+        startedAtTimestamp: state.startedAtTimestamp,
+        isTimerRunning: state.isTimerRunning,
+        pausedAtTimestamp: state.pausedAtTimestamp,
+        accumulatedPausedMs: state.accumulatedPausedMs,
+        configuredRestTarget: state.configuredRestTarget,
+        restTimerTargetSeconds: state.restTimerTargetSeconds,
+        restTimerStartedAt: state.restTimerStartedAt,
+        isRestTimerRunning: state.isRestTimerRunning,
+        accumulatedRestSeconds: state.accumulatedRestSeconds,
+      }),
+    },
+  ),
+);

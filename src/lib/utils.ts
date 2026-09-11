@@ -31,6 +31,8 @@ export function formatDuration(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+export const formatTimeMMSS = formatDuration;
+
 /**
  * Format Date to readable Indonesian date
  */
@@ -67,4 +69,73 @@ export function extractApiError(err: unknown, fallbackMessage = 'Terjadi kesalah
 
   return data?.message || fallbackMessage;
 }
+
+/**
+ * Play a gentle gym beep/chime using Web Audio API and trigger device vibration
+ */
+export function playRestCompleteAlert(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // Haptic vibration for mobile phones (supported on Android/Chrome)
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate([250, 100, 250, 100, 400]);
+    }
+
+    // Web Audio Synthesized Chime (100% zero external asset dependency)
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+
+    if (AudioContextClass) {
+      const ctx = new AudioContextClass();
+      const now = ctx.currentTime;
+
+      const playTone = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.2, start);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + duration);
+      };
+
+      // Upbeat 2-tone gym bell (D5 -> A5)
+      playTone(587.33, now, 0.12);
+      playTone(880.0, now + 0.14, 0.35);
+    }
+  } catch {
+    // Silently ignore if AudioContext is restricted by browser policy
+  }
+}
+
+/**
+ * Calculate estimated calories burned during strength/resistance training session.
+ * Uses Compendium of Physical Activities MET values:
+ * - Active work time (Lifting): ~5.5 MET (0.096 kcal/kg/min)
+ * - Rest/Intermission: ~1.5 MET (0.026 kcal/kg/min)
+ * - Volume tonnage bonus: ~0.0005 kcal per kg lifted
+ */
+export function calculateEstimatedCaloriesBurned(
+  activeWorkSeconds: number,
+  restSeconds: number,
+  totalVolumeKg = 0,
+  userWeightKg = 70,
+): number {
+  const activeMinutes = Math.max(0, activeWorkSeconds) / 60;
+  const restMinutes = Math.max(0, restSeconds) / 60;
+  const weight = userWeightKg > 0 ? userWeightKg : 70;
+
+  // Formula: (MET * 3.5 * weight / 200) * minutes
+  const activeCalories = ((5.5 * 3.5 * weight) / 200) * activeMinutes;
+  const restCalories = ((1.5 * 3.5 * weight) / 200) * restMinutes;
+  const volumeBonus = Math.max(0, totalVolumeKg) * 0.0005;
+
+  const total = activeCalories + restCalories + volumeBonus;
+  return Math.max(0, Math.round(total));
+}
+
 

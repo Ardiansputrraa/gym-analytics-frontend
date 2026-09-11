@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/common/AppShell';
 import { CheckInBanner } from '@/components/common/CheckInBanner';
@@ -133,9 +133,19 @@ const recentPRs = [
 ];
 
 export default function DashboardPage() {
-  const { activeSession, isTimerRunning, elapsedSeconds } = useWorkoutSessionStore();
+  const { activeSession, isTimerRunning, getElapsedSeconds } = useWorkoutSessionStore();
   const [analyticsTab, setAnalyticsTab] = useState<'VOLUME' | 'STRENGTH' | 'CALORIE_WEIGHT' | 'WORK_REST'>('VOLUME');
   const [timeframe, setTimeframe] = useState<'7D' | '30D' | '90D'>('7D');
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!activeSession) return;
+    setElapsed(getElapsedSeconds());
+    const interval = setInterval(() => {
+      setElapsed(getElapsedSeconds());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeSession, getElapsedSeconds]);
 
   return (
     <AppShell>
@@ -155,7 +165,7 @@ export default function DashboardPage() {
                   Sesi latihan sedang berlangsung
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-base)] border border-[var(--accent-primary)]/40 font-mono text-[var(--accent-primary)]">
-                  {formatDuration(elapsedSeconds)}
+                  {formatDuration(elapsed)}
                 </span>
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">

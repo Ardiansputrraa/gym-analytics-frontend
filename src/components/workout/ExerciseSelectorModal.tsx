@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   MASTER_EXERCISES_LIBRARY,
   ExerciseMaster,
@@ -17,8 +17,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { exerciseService } from '@/services/exercise.service';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface ExerciseSelectorModalProps {
   isOpen: boolean;
@@ -53,7 +58,7 @@ const EQUIPMENT_FILTER_OPTIONS: { key: 'ALL' | EquipmentCategory; label: string 
   { key: 'STATIONARY_BIKE', label: 'Sepeda Statis' },
 ];
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 10;
 
 export function ExerciseSelectorModal({
   isOpen,
@@ -63,66 +68,182 @@ export function ExerciseSelectorModal({
   alreadySelectedIds = [],
 }: ExerciseSelectorModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 350);
+
   const [selectedMuscle, setSelectedMuscle] = useState<'ALL' | MuscleGroupCategory>('ALL');
   const [selectedEquipment, setSelectedEquipment] = useState<'ALL' | EquipmentCategory>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Server data state
+  const [exercises, setExercises] = useState<ExerciseMaster[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // Custom Exercise Creation State (Positioned at the TOP)
   const [isCreatingCustom, setIsCreatingCustom] = useState(false);
+  const [isSubmittingCustom, setIsSubmittingCustom] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customMuscle, setCustomMuscle] = useState<MuscleGroupCategory>('CHEST');
   const [customEquipment, setCustomEquipment] = useState<EquipmentCategory>('DUMBBELL');
+  const [customDescription, setCustomDescription] = useState('');
+  const [customError, setCustomError] = useState<string | null>(null);
 
-  // Filtered exercises
-  const filteredExercises = useMemo(() => {
-    return MASTER_EXERCISES_LIBRARY.filter((ex) => {
-      const matchSearch =
-        ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ex.primaryMuscleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ex.equipmentName.toLowerCase().includes(searchQuery.toLowerCase());
+  // Fetch Exercises from Backend API (with fallback)
+  const fetchExercises = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
 
-      const matchMuscle = selectedMuscle === 'ALL' || ex.primaryMuscle === selectedMuscle;
-      const matchEquipment = selectedEquipment === 'ALL' || ex.equipment === selectedEquipment;
+    try {
+      const res = await exerciseService.getExercises({
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        search: debouncedSearch,
+        muscleGroup: selectedMuscle !== 'ALL' ? selectedMuscle : undefined,
+        equipment: selectedEquipment !== 'ALL' ? selectedEquipment : undefined,
+      });
 
-      return matchSearch && matchMuscle && matchEquipment;
-    });
-  }, [searchQuery, selectedMuscle, selectedEquipment]);
+      if (res && Array.isArray(res.items) && res.items.length > 0) {
+        setExercises(res.items);
+        setTotalItems(res.pagination.totalItems);
+        setTotalPages(res.pagination.totalPages);
+      } else if (res && Array.isArray(res.items)) {
+        setExercises([]);
+        setTotalItems(0);
+        setTotalPages(1);
+      } else {
+        throw new Error('Invalid response structure');
+      }
+    } catch (err: any) {
+      // Graceful fallback to static library if offline or backend unavailable
+      const filtered = MASTER_EXERCISES_LIBRARY.filter((ex) => {
+        const matchSearch =
+          debouncedSearch === '' ||
+          ex.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          ex.primaryMuscleName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          ex.equipmentName.toLowerCase().includes(debouncedSearch.toLowerCase());
 
-  // Reset page when filter or search changes
+        const matchMuscle = selectedMuscle === 'ALL' || ex.primaryMuscle === selectedMuscle;
+        const matchEquipment = selectedEquipment === 'ALL' || ex.equipment === selectedEquipment;
+
+        return matchSearch && matchMuscle && matchEquipment;
+      });
+
+      const start = (currentPage - 1) * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      setExercises(filtered.slice(start, end));
+      setTotalItems(filtered.length);
+      setTotalPages(Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE)));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, debouncedSearch, selectedMuscle, selectedEquipment]);
+
+  // Reset page to 1 when filters or debounced search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedMuscle, selectedEquipment]);
+  }, [debouncedSearch, selectedMuscle, selectedEquipment]);
 
-  // Pagination calculations
-  const totalPages = Math.max(1, Math.ceil(filteredExercises.length / ITEMS_PER_PAGE));
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredExercises.length);
-  const paginatedExercises = useMemo(() => {
-    return filteredExercises.slice(startIndex, endIndex);
-  }, [filteredExercises, startIndex, endIndex]);
+  // Fetch whenever modal opens or parameters change
+  useEffect(() => {
+    if (isOpen) {
+      fetchExercises();
+    }
+  }, [isOpen, fetchExercises]);
+
+  // Smart Filter Selection: Automatically resolves conflicts between muscle groups and cardio equipment
+  const handleSelectMuscle = (key: 'ALL' | MuscleGroupCategory) => {
+    if (selectedMuscle === key && key !== 'ALL') {
+      setSelectedMuscle('ALL');
+      return;
+    }
+    setSelectedMuscle(key);
+
+    if (key === 'CARDIO') {
+      const cardioEquipments: (EquipmentCategory | 'ALL')[] = ['ALL', 'TREADMILL', 'STAIR_MASTER', 'STATIONARY_BIKE'];
+      if (!cardioEquipments.includes(selectedEquipment)) {
+        setSelectedEquipment('ALL');
+      }
+    } else if (key !== 'ALL') {
+      const cardioOnlyEquipments: EquipmentCategory[] = ['TREADMILL', 'STAIR_MASTER', 'STATIONARY_BIKE'];
+      if (cardioOnlyEquipments.includes(selectedEquipment as EquipmentCategory)) {
+        setSelectedEquipment('ALL');
+      }
+    }
+  };
+
+  const handleSelectEquipment = (key: 'ALL' | EquipmentCategory) => {
+    if (selectedEquipment === key && key !== 'ALL') {
+      setSelectedEquipment('ALL');
+      return;
+    }
+    setSelectedEquipment(key);
+
+    const cardioEquipments: EquipmentCategory[] = ['TREADMILL', 'STAIR_MASTER', 'STATIONARY_BIKE'];
+    if (cardioEquipments.includes(key as EquipmentCategory)) {
+      if (selectedMuscle !== 'ALL' && selectedMuscle !== 'CARDIO') {
+        setSelectedMuscle('ALL');
+      }
+    } else if (key !== 'ALL') {
+      if (selectedMuscle === 'CARDIO') {
+        setSelectedMuscle('ALL');
+      }
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedMuscle('ALL');
+    setSelectedEquipment('ALL');
+    setSearchQuery('');
+  };
 
   if (!isOpen) return null;
 
-  const handleCreateCustom = (e: React.FormEvent) => {
+  const handleCreateCustom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customName.trim()) return;
+
+    setIsSubmittingCustom(true);
+    setCustomError(null);
 
     const muscleObj = MUSCLE_FILTER_OPTIONS.find((m) => m.key === customMuscle);
     const equipObj = EQUIPMENT_FILTER_OPTIONS.find((eq) => eq.key === customEquipment);
 
-    const newEx: ExerciseMaster = {
-      id: `custom-${Date.now()}`,
-      name: customName.trim(),
-      primaryMuscle: customMuscle,
-      primaryMuscleName: muscleObj?.label || 'Dada',
-      equipment: customEquipment,
-      equipmentName: equipObj?.label || 'Dumbbell',
-      isCustom: true,
-    };
+    try {
+      const created = await exerciseService.createCustomExercise({
+        name: customName.trim(),
+        description: customDescription.trim() || undefined,
+        muscleGroup: customMuscle,
+        equipment: customEquipment,
+        exerciseType: customEquipment === 'TREADMILL' ? 'CARDIO_TREADMILL' : 'STRENGTH',
+      });
 
-    onSelectExercise(newEx);
-    setIsCreatingCustom(false);
-    setCustomName('');
+      onSelectExercise(created);
+      setIsCreatingCustom(false);
+      setCustomName('');
+      setCustomDescription('');
+      fetchExercises();
+    } catch (err: any) {
+      // Fallback local creation if API fails
+      const fallbackEx: ExerciseMaster = {
+        id: `custom-${Date.now()}`,
+        name: customName.trim(),
+        description: customDescription.trim() || undefined,
+        primaryMuscle: customMuscle,
+        primaryMuscleName: muscleObj?.label || 'Dada',
+        equipment: customEquipment,
+        equipmentName: equipObj?.label || 'Dumbbell',
+        isCustom: true,
+      };
+
+      onSelectExercise(fallbackEx);
+      setIsCreatingCustom(false);
+      setCustomName('');
+      setCustomDescription('');
+    } finally {
+      setIsSubmittingCustom(false);
+    }
   };
 
   const handleToggle = (ex: ExerciseMaster, isSelected: boolean) => {
@@ -134,6 +255,9 @@ export function ExerciseSelectorModal({
       onSelectExercise(ex);
     }
   };
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + exercises.length, totalItems);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in overflow-y-auto">
@@ -155,17 +279,6 @@ export function ExerciseSelectorModal({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Trigger Selesai Button */}
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={onClose}
-              className="font-bold text-xs px-3.5 shadow-md flex items-center gap-1.5"
-            >
-              <Check className="w-4 h-4" />
-              <span>Selesai</span>
-            </Button>
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-[6px] border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-base)] cursor-pointer"
@@ -188,6 +301,11 @@ export function ExerciseSelectorModal({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-11 pl-10 pr-4 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
               />
+              {isLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-[var(--accent-primary)] animate-spin" />
+                </div>
+              )}
             </div>
 
             {/* Custom Exercise Button at the TOP */}
@@ -199,9 +317,8 @@ export function ExerciseSelectorModal({
               className="shrink-0 h-11 text-xs font-bold border-[var(--accent-primary)]/50 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10"
             >
               <Plus
-                className={`w-4 h-4 mr-1.5 transition-transform duration-200 ${
-                  isCreatingCustom ? 'rotate-45' : ''
-                }`}
+                className={`w-4 h-4 mr-1.5 transition-transform duration-200 ${isCreatingCustom ? 'rotate-45' : ''
+                  }`}
               />
               <span>{isCreatingCustom ? 'Tutup Form' : '+ Buat Alat / Gerakan Kustom'}</span>
             </Button>
@@ -225,6 +342,12 @@ export function ExerciseSelectorModal({
                   Batal
                 </button>
               </div>
+
+              {customError && (
+                <div className="p-2.5 rounded-[6px] bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+                  {customError}
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-secondary)]">
@@ -274,11 +397,30 @@ export function ExerciseSelectorModal({
               </div>
 
               <div className="flex justify-end gap-2 pt-1">
-                <Button type="button" variant="secondary" size="sm" onClick={() => setIsCreatingCustom(false)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={isSubmittingCustom}
+                  onClick={() => setIsCreatingCustom(false)}
+                >
                   Batal
                 </Button>
-                <Button type="submit" variant="primary" size="sm">
-                  + Langsung Tambahkan ke Latihan
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={isSubmittingCustom || !customName.trim()}
+                  className="flex items-center gap-1.5"
+                >
+                  {isSubmittingCustom ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>+ Langsung Tambahkan ke Latihan</span>
+                  )}
                 </Button>
               </div>
             </form>
@@ -286,20 +428,31 @@ export function ExerciseSelectorModal({
 
           {/* Muscle Group Filter Chips */}
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase">
-              <Filter className="w-3 h-3 text-[var(--accent-secondary)]" />
-              Kelompok Otot:
+            <div className="flex items-center justify-between text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+              <span className="flex items-center gap-1.5">
+                <Filter className="w-3 h-3 text-[var(--accent-secondary)]" />
+                Kelompok Otot:
+              </span>
+              {selectedMuscle !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedMuscle('ALL')}
+                  className="text-[10px] text-[var(--accent-primary)] hover:underline cursor-pointer lowercase"
+                >
+                  reset otot
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {MUSCLE_FILTER_OPTIONS.map((opt) => (
                 <button
                   key={opt.key}
-                  onClick={() => setSelectedMuscle(opt.key)}
-                  className={`px-2.5 py-1 text-xs rounded-[6px] border transition-all cursor-pointer ${
-                    selectedMuscle === opt.key
+                  type="button"
+                  onClick={() => handleSelectMuscle(opt.key)}
+                  className={`px-2.5 py-1 text-xs rounded-[6px] border transition-all cursor-pointer ${selectedMuscle === opt.key
                       ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] font-bold'
                       : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
+                    }`}
                 >
                   {opt.label}
                 </button>
@@ -309,20 +462,31 @@ export function ExerciseSelectorModal({
 
           {/* Equipment Filter Chips */}
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase">
-              <Dumbbell className="w-3 h-3 text-sky-400" />
-              Jenis Alat:
+            <div className="flex items-center justify-between text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+              <span className="flex items-center gap-1.5">
+                <Dumbbell className="w-3 h-3 text-sky-400" />
+                Jenis Alat:
+              </span>
+              {selectedEquipment !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedEquipment('ALL')}
+                  className="text-[10px] text-sky-400 hover:underline cursor-pointer lowercase"
+                >
+                  reset alat
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {EQUIPMENT_FILTER_OPTIONS.map((eq) => (
                 <button
                   key={eq.key}
-                  onClick={() => setSelectedEquipment(eq.key)}
-                  className={`px-2.5 py-1 text-xs rounded-[6px] border transition-all cursor-pointer ${
-                    selectedEquipment === eq.key
+                  type="button"
+                  onClick={() => handleSelectEquipment(eq.key)}
+                  className={`px-2.5 py-1 text-xs rounded-[6px] border transition-all cursor-pointer ${selectedEquipment === eq.key
                       ? 'border-sky-500 bg-sky-500/15 text-sky-400 font-bold'
                       : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
+                    }`}
                 >
                   {eq.label}
                 </button>
@@ -333,39 +497,77 @@ export function ExerciseSelectorModal({
 
         {/* Exercise List / Results with Toggle & Uncheck */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[260px]">
-          {filteredExercises.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-5 h-5 rounded-[4px]" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-40 rounded" />
+                      <div className="flex items-center gap-1.5">
+                        <Skeleton className="h-3.5 w-16 rounded-full" />
+                        <Skeleton className="h-3.5 w-20 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-12 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : exercises.length === 0 ? (
             <div className="p-8 text-center space-y-3">
               <p className="text-xs text-[var(--text-secondary)]">
-                Tidak ada gerakan yang cocok dengan pencarian atau filter Anda.
+                Tidak ada gerakan yang cocok dengan pencarian atau kombinasi filter Anda.
               </p>
-              {!isCreatingCustom && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setIsCreatingCustom(true)}
-                  className="font-semibold"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Buat Gerakan Kustom Sekarang
-                </Button>
-              )}
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                {(selectedMuscle !== 'ALL' || selectedEquipment !== 'ALL' || searchQuery.trim() !== '') && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleResetFilters}
+                    className="font-semibold text-xs border-[var(--border-default)]"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                    Reset Semua Filter
+                  </Button>
+                )}
+                {!isCreatingCustom && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setIsCreatingCustom(true)}
+                    className="font-semibold"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Buat Gerakan Kustom Sekarang
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
-            paginatedExercises.map((ex) => {
+            exercises.map((ex) => {
               const isSelected = alreadySelectedIds.includes(ex.id);
               return (
                 <div
                   key={ex.id}
                   onClick={() => handleToggle(ex, isSelected)}
-                  className={`group p-3 rounded-[8px] border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
-                    isSelected
+                  className={`group p-3 rounded-[8px] border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${isSelected
                       ? 'border-emerald-500/70 bg-emerald-500/10 hover:border-red-500/70 hover:bg-red-500/10'
                       : 'border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--accent-primary)]/80 hover:bg-[var(--bg-base)]'
-                  }`}
+                    }`}
                 >
                   <div className="space-y-1">
                     <span className="text-sm font-bold text-[var(--text-primary)] font-[var(--font-display)] block">
                       {ex.name}
+                      {ex.isCustom && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-normal">
+                          Kustom
+                        </span>
+                      )}
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)] text-[10px] font-bold text-[var(--accent-secondary)]">
@@ -402,17 +604,17 @@ export function ExerciseSelectorModal({
         </div>
 
         {/* Pagination Controls */}
-        {filteredExercises.length > ITEMS_PER_PAGE && (
+        {totalItems > ITEMS_PER_PAGE && (
           <div className="px-4 py-2.5 border-t border-[var(--border-default)]/60 bg-[var(--bg-base)]/40 flex items-center justify-between text-xs text-[var(--text-secondary)]">
             <span className="tabular-nums">
-              Menampilkan <b>{startIndex + 1}–{endIndex}</b> dari <b>{filteredExercises.length}</b> gerakan
+              Menampilkan <b>{totalItems > 0 ? startIndex + 1 : 0}–{endIndex}</b> dari <b>{totalItems}</b> gerakan
             </span>
 
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || isLoading}
                 className="p-1.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-base)] text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                 title="Halaman Sebelumnya"
               >
@@ -428,7 +630,7 @@ export function ExerciseSelectorModal({
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || isLoading}
                 className="p-1.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-base)] text-[var(--text-primary)] disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                 title="Halaman Berikutnya"
               >
@@ -441,7 +643,7 @@ export function ExerciseSelectorModal({
         {/* Modal Footer with Selesai Trigger Button */}
         <div className="p-3.5 sm:p-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)] flex items-center justify-between gap-3">
           <div className="text-xs text-[var(--text-secondary)]">
-            <span>Total <b>{filteredExercises.length}</b> gerakan</span>
+            <span>Total <b>{totalItems}</b> gerakan</span>
             {alreadySelectedIds.length > 0 && (
               <span className="text-emerald-400 font-semibold ml-2">
                 • {alreadySelectedIds.length} dipilih di sesi

@@ -110,7 +110,17 @@ export const RestTimerRing: React.FC<RestTimerRingProps> = ({
           variant={isRunning ? 'secondary' : 'primary'}
           size="sm"
           onClick={onToggle}
-          className="min-w-[96px] text-xs font-bold shadow-sm"
+          disabled={!isRunning}
+          title={
+            isRunning
+              ? 'Jeda Waktu Istirahat'
+              : 'Rest timer akan berjalan otomatis saat Anda mencentang set selesai'
+          }
+          className={`min-w-[96px] text-xs font-bold shadow-sm transition-all ${
+            !isRunning
+              ? 'opacity-40 cursor-not-allowed bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-[var(--text-tertiary)] hover:bg-[var(--bg-surface-raised)] shadow-none'
+              : ''
+          }`}
         >
           {isRunning ? (
             <>
