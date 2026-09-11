@@ -38,6 +38,7 @@ export default function ActiveWorkoutPage() {
     activeSession,
     isTimerRunning,
     toggleSessionTimer,
+    resumeSessionTimer,
     getElapsedSeconds,
     getActiveWorkSeconds,
     getTotalRestSeconds,
@@ -227,10 +228,9 @@ export default function ActiveWorkoutPage() {
       return;
     }
 
-    // Validation 1: Stopwatch Total di Gym must be running
+    // Ensure session stopwatch is running
     if (!isTimerRunning) {
-      toast.warning('Mulai stopwatch "TOTAL DI GYM" terlebih dahulu sebelum mencatat set selesai!');
-      return;
+      resumeSessionTimer();
     }
 
     const isCardio = isExerciseCardio(ex);

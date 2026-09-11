@@ -179,6 +179,13 @@ export default function WorkoutsPage() {
     staleTime: 1000 * 30,
   });
 
+  // Query 2.5: Active Workout Session Status
+  const { data: activeWorkout } = useQuery({
+    queryKey: ['active-workout-session'],
+    queryFn: () => workoutService.getActiveWorkout(),
+    staleTime: 1000 * 10,
+  });
+
   // Query 3: Exercise Master Catalog
   const {
     data: exerciseLibraryData,
@@ -288,7 +295,16 @@ export default function WorkoutsPage() {
 
         <Link href="/workouts/active" className="w-full sm:w-auto">
           <Button variant="primary" size="md" className="w-full sm:w-auto shadow-md text-xs sm:text-sm py-2 sm:py-2.5">
-            <Plus className="w-4 h-4 mr-1.5" /> Mulai Sesi Workout
+            {activeWorkout ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-1.5" />
+                Lanjutkan Sesi Aktif ({activeWorkout.name})
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-1.5" /> Mulai Sesi Workout
+              </>
+            )}
           </Button>
         </Link>
       </div>

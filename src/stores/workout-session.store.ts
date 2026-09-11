@@ -129,12 +129,15 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
               return null;
             }
 
-            const { isTimerRunning, startedAtTimestamp } = get();
+            const { isTimerRunning, pausedAtTimestamp } = get();
             const startMs = startDate.getTime();
+            // If session was actively in progress, default to running (unless explicitly paused locally)
+            const shouldRun = pausedAtTimestamp ? isTimerRunning : true;
             set({
               activeSession: backendActive,
-              startedAtTimestamp: startedAtTimestamp || startMs,
-              isTimerRunning: isTimerRunning,
+              startedAtTimestamp: startMs,
+              isTimerRunning: shouldRun,
+              pausedAtTimestamp: shouldRun ? null : pausedAtTimestamp,
             });
             return backendActive;
           } else {
@@ -143,6 +146,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
               activeSession: null,
               startedAtTimestamp: null,
               isTimerRunning: false,
+              pausedAtTimestamp: null,
+              accumulatedPausedMs: 0,
             });
             return null;
           }
@@ -172,8 +177,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
         set({
           activeSession: session,
           startedAtTimestamp: startMs,
-          isTimerRunning: false,
-          pausedAtTimestamp: Date.now(),
+          isTimerRunning: true,
+          pausedAtTimestamp: null,
         });
       },
 
@@ -183,8 +188,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
         set({
           activeSession: res,
           startedAtTimestamp: res.startedAt ? new Date(res.startedAt).getTime() : nowMs,
-          isTimerRunning: false, // Manual trigger: starts paused at 00:00 so user can hit play when ready
-          pausedAtTimestamp: nowMs,
+          isTimerRunning: true, // Live session starts immediately
+          pausedAtTimestamp: null,
           accumulatedPausedMs: 0,
           isRestTimerRunning: false,
           restTimerStartedAt: null,

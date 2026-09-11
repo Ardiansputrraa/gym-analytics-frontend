@@ -2,11 +2,14 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '@/components/common/AppShell';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { Divider } from '@/components/ui/Divider';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import {
   Scale,
   TrendingDown,
@@ -19,9 +22,7 @@ import {
   TrendingUp,
   Search,
   Calendar,
-  Award,
-  ChevronRight,
-  Info,
+  Trash2,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -31,94 +32,51 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts';
-
-interface MeasurementEntry {
-  date: string;
-  weight: number;
-  smm: number;
-  bodyFatPct: number;
-  bodyFatKg: number;
-  fatFreeMass: number;
-  waterContent: number;
-  protein?: number;
-  mineral?: number;
-  bmi?: number;
-}
-
-const history7d: MeasurementEntry[] = [
-  { date: '03 Sep', weight: 104.6, smm: 35.6, bodyFatPct: 38.5, bodyFatKg: 40.2, fatFreeMass: 64.4, waterContent: 45.4 },
-  { date: '05 Sep', weight: 104.4, smm: 35.7, bodyFatPct: 38.3, bodyFatKg: 39.9, fatFreeMass: 64.5, waterContent: 45.5 },
-  { date: '07 Sep', weight: 104.2, smm: 35.7, bodyFatPct: 38.2, bodyFatKg: 39.8, fatFreeMass: 64.4, waterContent: 45.6 },
-  { date: '09 Sep', weight: 104.1, smm: 35.8, bodyFatPct: 38.1, bodyFatKg: 39.7, fatFreeMass: 64.4, waterContent: 45.7 },
-];
-
-const history30d: MeasurementEntry[] = [
-  { date: '10 Aug', weight: 106.5, smm: 35.0, bodyFatPct: 40.2, bodyFatKg: 42.8, fatFreeMass: 63.7, waterContent: 44.5 },
-  { date: '17 Aug', weight: 105.8, smm: 35.2, bodyFatPct: 39.7, bodyFatKg: 42.0, fatFreeMass: 63.8, waterContent: 44.8 },
-  { date: '24 Aug', weight: 105.2, smm: 35.4, bodyFatPct: 39.1, bodyFatKg: 41.1, fatFreeMass: 64.1, waterContent: 45.0 },
-  { date: '31 Aug', weight: 104.8, smm: 35.6, bodyFatPct: 38.6, bodyFatKg: 40.4, fatFreeMass: 64.4, waterContent: 45.3 },
-  { date: '09 Sep', weight: 104.1, smm: 35.8, bodyFatPct: 38.1, bodyFatKg: 39.7, fatFreeMass: 64.4, waterContent: 45.7 },
-];
-
-const history90d: MeasurementEntry[] = [
-  { date: '10 Jun', weight: 109.2, smm: 34.2, bodyFatPct: 42.5, bodyFatKg: 46.4, fatFreeMass: 62.8, waterContent: 43.8 },
-  { date: '25 Jun', weight: 108.0, smm: 34.6, bodyFatPct: 41.6, bodyFatKg: 44.9, fatFreeMass: 63.1, waterContent: 44.1 },
-  { date: '10 Jul', weight: 107.1, smm: 34.9, bodyFatPct: 40.8, bodyFatKg: 43.7, fatFreeMass: 63.4, waterContent: 44.3 },
-  { date: '25 Jul', weight: 106.3, smm: 35.1, bodyFatPct: 40.0, bodyFatKg: 42.5, fatFreeMass: 63.8, waterContent: 44.6 },
-  { date: '10 Aug', weight: 105.5, smm: 35.3, bodyFatPct: 39.4, bodyFatKg: 41.5, fatFreeMass: 64.0, waterContent: 44.9 },
-  { date: '25 Aug', weight: 104.9, smm: 35.6, bodyFatPct: 38.7, bodyFatKg: 40.6, fatFreeMass: 64.3, waterContent: 45.2 },
-  { date: '09 Sep', weight: 104.1, smm: 35.8, bodyFatPct: 38.1, bodyFatKg: 39.7, fatFreeMass: 64.4, waterContent: 45.7 },
-];
-
-const history1y: MeasurementEntry[] = [
-  { date: 'Okt 25', weight: 114.0, smm: 33.0, bodyFatPct: 45.2, bodyFatKg: 51.5, fatFreeMass: 62.5, waterContent: 42.5 },
-  { date: 'Des 25', weight: 111.5, smm: 33.6, bodyFatPct: 43.8, bodyFatKg: 48.8, fatFreeMass: 62.7, waterContent: 43.0 },
-  { date: 'Feb 26', weight: 109.0, smm: 34.2, bodyFatPct: 42.2, bodyFatKg: 46.0, fatFreeMass: 63.0, waterContent: 43.7 },
-  { date: 'Apr 26', weight: 107.4, smm: 34.8, bodyFatPct: 41.0, bodyFatKg: 44.0, fatFreeMass: 63.4, waterContent: 44.2 },
-  { date: 'Jun 26', weight: 105.8, smm: 35.3, bodyFatPct: 39.5, bodyFatKg: 41.8, fatFreeMass: 64.0, waterContent: 44.9 },
-  { date: 'Agu 26', weight: 104.7, smm: 35.6, bodyFatPct: 38.5, bodyFatKg: 40.3, fatFreeMass: 64.4, waterContent: 45.4 },
-  { date: 'Sep 26', weight: 104.1, smm: 35.8, bodyFatPct: 38.1, bodyFatKg: 39.7, fatFreeMass: 64.4, waterContent: 45.7 },
-];
+import { bodyService } from '@/services/body.service';
+import {
+  BodyCompositionStatus,
+  BodyMeasurement,
+} from '@/types/body.types';
 
 // Custom Telemetry Tooltip for Body Composition
 interface BodyCompTooltipProps {
   active?: boolean;
   payload?: Array<{ value: number; name: string }>;
   label?: string;
-  metric: 'weight' | 'smm' | 'bodyFatPct';
+  metric: 'weightKg' | 'smmKg' | 'bodyFatKg';
 }
 
 function CustomBodyCompTooltip({ active, payload, label, metric }: BodyCompTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
-  const val = payload[0].value;
+  const val = payload[0]?.value;
 
-  const metricLabel = metric === 'weight' ? 'Berat badan' : metric === 'smm' ? 'Otot rangka (SMM)' : 'Kadar lemak (Body fat)';
-  const metricUnit = metric === 'bodyFatPct' ? '%' : 'kg';
-  const metricColor = metric === 'weight' ? '#FF6B2C' : metric === 'smm' ? '#4CD6DE' : '#FFA726';
+  const metricLabel =
+    metric === 'weightKg'
+      ? 'Berat Total'
+      : metric === 'smmKg'
+      ? 'Otot Rangka (SMM)'
+      : 'Massa Lemak (Body Fat)';
+  const metricColor =
+    metric === 'weightKg' ? '#FF6B2C' : metric === 'smmKg' ? '#4CD6DE' : '#FFA726';
 
   return (
-    <div className="rounded-[14px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 space-y-2 min-w-[210px] shadow-xl">
+    <div className="rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 space-y-2 min-w-[200px] shadow-xl">
       <div className="flex items-center justify-between border-b border-[var(--border-default)]/60 pb-1.5">
         <span className="text-xs font-bold text-[var(--text-secondary)]">{label}</span>
-        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-[var(--text-secondary)] font-mono font-bold">
-          InBody Scan
+        <span className="text-[10px] px-2 py-0.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)] text-[var(--text-secondary)] font-mono font-bold">
+          Data Komposisi
         </span>
       </div>
 
       <div className="space-y-1">
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-[var(--text-secondary)]">{metricLabel}:</span>
-          <span className="text-base font-bold font-[var(--font-display)] tabular-nums" style={{ color: metricColor }}>
-            {val} <span className="text-xs font-normal">{metricUnit}</span>
-          </span>
-        </div>
-
-        <div className="text-[11px] pt-1 text-[var(--text-secondary)] flex items-center justify-between">
-          <span>Klasifikasi:</span>
-          <span className="font-semibold text-[var(--text-primary)]">
-            {metric === 'weight' ? 'Fase fat loss' : metric === 'smm' ? 'Progressive overload' : 'Defisit terkalibrasi'}
+          <span
+            className="text-base font-bold font-[var(--font-display)] tabular-nums"
+            style={{ color: metricColor }}
+          >
+            {val !== null && val !== undefined ? `${val} kg` : '-'}
           </span>
         </div>
       </div>
@@ -126,116 +84,211 @@ function CustomBodyCompTooltip({ active, payload, label, metric }: BodyCompToolt
   );
 }
 
-export interface InBodyScanRecord {
-  id: string;
-  date: string;
-  displayDate: string;
-  weight: number;
-  weightDelta: string;
-  smm: number;
-  smmDelta: string;
-  bodyFatPct: number;
-  bodyFatKg: number;
-  fatFreeMass: number;
-  waterContent: number;
-  bmi: number;
-  status: 'FAT_LOSS' | 'MUSCLE_GAIN' | 'MAINTENANCE' | 'PR_COMPOSITION';
-  evaluation: string;
+function getStatusBadge(status: BodyCompositionStatus, evaluation?: string | null) {
+  const displayText =
+    evaluation ||
+    (status === 'PR_COMPOSITION'
+      ? 'Rekor Komposisi'
+      : status === 'MUSCLE_GAIN'
+      ? 'Pertumbuhan Otot'
+      : status === 'FAT_LOSS'
+      ? 'Fat Loss Konsisten'
+      : status === 'RECOMPOSITION'
+      ? 'Body Recomposition'
+      : 'Pemeliharaan Stabil');
+
+  switch (status) {
+    case 'PR_COMPOSITION':
+      return (
+        <span className="inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/40">
+          {displayText}
+        </span>
+      );
+    case 'MUSCLE_GAIN':
+      return (
+        <span className="inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+          {displayText}
+        </span>
+      );
+    case 'FAT_LOSS':
+      return (
+        <span className="inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-[var(--color-moss-600)]/20 text-[var(--color-moss-600)] border border-[var(--color-moss-600)]/40">
+          {displayText}
+        </span>
+      );
+    case 'RECOMPOSITION':
+      return (
+        <span className="inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40">
+          {displayText}
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-semibold bg-[var(--bg-base)] text-[var(--text-secondary)] border border-[var(--border-default)]">
+          {displayText}
+        </span>
+      );
+  }
 }
 
-const allInBodyScans: InBodyScanRecord[] = [
-  { id: 'ib-1', date: '2026-09-09', displayDate: '09 Sep 2026', weight: 104.1, weightDelta: '-0.1 kg', smm: 35.8, smmDelta: '+0.1 kg', bodyFatPct: 38.1, bodyFatKg: 39.7, fatFreeMass: 64.4, waterContent: 45.7, bmi: 34.0, status: 'PR_COMPOSITION', evaluation: 'All-Time Low Body Fat (38.1%) & Rekor SMM' },
-  { id: 'ib-2', date: '2026-09-07', displayDate: '07 Sep 2026', weight: 104.2, weightDelta: '-0.2 kg', smm: 35.7, smmDelta: '0.0 kg', bodyFatPct: 38.2, bodyFatKg: 39.8, fatFreeMass: 64.4, waterContent: 45.6, bmi: 34.0, status: 'FAT_LOSS', evaluation: 'Fat Loss Konsisten & Otot Terjaga' },
-  { id: 'ib-3', date: '2026-09-05', displayDate: '05 Sep 2026', weight: 104.4, weightDelta: '-0.2 kg', smm: 35.7, smmDelta: '+0.1 kg', bodyFatPct: 38.3, bodyFatKg: 39.9, fatFreeMass: 64.5, waterContent: 45.5, bmi: 34.1, status: 'FAT_LOSS', evaluation: 'Defisit Terkalibrasi Sempurna' },
-  { id: 'ib-4', date: '2026-09-03', displayDate: '03 Sep 2026', weight: 104.6, weightDelta: '-0.2 kg', smm: 35.6, smmDelta: '0.0 kg', bodyFatPct: 38.5, bodyFatKg: 40.2, fatFreeMass: 64.4, waterContent: 45.4, bmi: 34.2, status: 'FAT_LOSS', evaluation: 'Penurunan Lemak Stabil' },
-  { id: 'ib-5', date: '2026-08-31', displayDate: '31 Agu 2026', weight: 104.8, weightDelta: '-0.4 kg', smm: 35.6, smmDelta: '+0.2 kg', bodyFatPct: 38.6, bodyFatKg: 40.4, fatFreeMass: 64.4, waterContent: 45.3, bmi: 34.2, status: 'MUSCLE_GAIN', evaluation: 'Pertumbuhan Otot Rangka (+200g)' },
-  { id: 'ib-6', date: '2026-08-24', displayDate: '24 Agu 2026', weight: 105.2, weightDelta: '-0.6 kg', smm: 35.4, smmDelta: '+0.2 kg', bodyFatPct: 39.1, bodyFatKg: 41.1, fatFreeMass: 64.1, waterContent: 45.0, bmi: 34.3, status: 'FAT_LOSS', evaluation: 'Fat Loss Fase Cepat' },
-  { id: 'ib-7', date: '2026-08-17', displayDate: '17 Agu 2026', weight: 105.8, weightDelta: '-0.7 kg', smm: 35.2, smmDelta: '+0.2 kg', bodyFatPct: 39.7, bodyFatKg: 42.0, fatFreeMass: 63.8, waterContent: 44.8, bmi: 34.5, status: 'FAT_LOSS', evaluation: 'Fase Re-composition Bagus' },
-  { id: 'ib-8', date: '2026-08-10', displayDate: '10 Agu 2026', weight: 106.5, weightDelta: '-0.6 kg', smm: 35.0, smmDelta: '+0.1 kg', bodyFatPct: 40.2, bodyFatKg: 42.8, fatFreeMass: 63.7, waterContent: 44.5, bmi: 34.8, status: 'FAT_LOSS', evaluation: 'Penurunan Sub-41% Body Fat' },
-  { id: 'ib-9', date: '2026-07-25', displayDate: '25 Jul 2026', weight: 107.1, weightDelta: '-0.9 kg', smm: 34.9, smmDelta: '+0.3 kg', bodyFatPct: 40.8, bodyFatKg: 43.7, fatFreeMass: 63.4, waterContent: 44.3, bmi: 35.0, status: 'FAT_LOSS', evaluation: 'Siklus Defisit Juli Selesai' },
-  { id: 'ib-10', date: '2026-07-10', displayDate: '10 Jul 2026', weight: 108.0, weightDelta: '-1.2 kg', smm: 34.6, smmDelta: '+0.4 kg', bodyFatPct: 41.6, bodyFatKg: 44.9, fatFreeMass: 63.1, waterContent: 44.1, bmi: 35.3, status: 'FAT_LOSS', evaluation: 'Overload Beban Berdampak Positif' },
-  { id: 'ib-11', date: '2026-06-25', displayDate: '25 Jun 2026', weight: 109.2, weightDelta: '-1.5 kg', smm: 34.2, smmDelta: '+0.3 kg', bodyFatPct: 42.5, bodyFatKg: 46.4, fatFreeMass: 62.8, waterContent: 43.8, bmi: 35.7, status: 'FAT_LOSS', evaluation: 'Fase Awal Program Gym Dimulai' },
-  { id: 'ib-12', date: '2026-05-15', displayDate: '15 Mei 2026', weight: 110.7, weightDelta: '-1.8 kg', smm: 33.9, smmDelta: '+0.3 kg', bodyFatPct: 43.1, bodyFatKg: 47.7, fatFreeMass: 63.0, waterContent: 43.4, bmi: 36.1, status: 'MAINTENANCE', evaluation: 'Evaluasi Adaptasi Nutrisi' },
-  { id: 'ib-13', date: '2026-04-10', displayDate: '10 Apr 2026', weight: 112.5, weightDelta: '-1.5 kg', smm: 33.6, smmDelta: '+0.6 kg', bodyFatPct: 44.0, bodyFatKg: 49.5, fatFreeMass: 63.0, waterContent: 43.0, bmi: 36.7, status: 'FAT_LOSS', evaluation: 'Pola Makan Defisit Bersih Dimulai' },
-  { id: 'ib-14', date: '2026-02-18', displayDate: '18 Feb 2026', weight: 114.0, weightDelta: '-2.0 kg', smm: 33.0, smmDelta: '0.0 kg', bodyFatPct: 45.2, bodyFatKg: 51.5, fatFreeMass: 62.5, waterContent: 42.5, bmi: 37.2, status: 'MAINTENANCE', evaluation: 'Scan Awal Transformasi Komposisi Tubuh' },
-];
-
 export default function BodyCompositionPage() {
+  const queryClient = useQueryClient();
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
-  const [activeChartMetric, setActiveChartMetric] = useState<'weight' | 'smm' | 'bodyFatPct'>('weight');
+  const [activeChartMetric, setActiveChartMetric] = useState<'weightKg' | 'smmKg' | 'bodyFatKg'>('weightKg');
 
   // Table pagination & search state
   const [scanPage, setScanPage] = useState(1);
   const [scanPageSize, setScanPageSize] = useState(5);
   const [scanSearch, setScanSearch] = useState('');
 
-  const filteredScans = React.useMemo(() => {
-    return allInBodyScans.filter((s) => {
-      const q = scanSearch.toLowerCase();
-      return (
-        s.displayDate.toLowerCase().includes(q) ||
-        s.evaluation.toLowerCase().includes(q) ||
-        s.status.toLowerCase().includes(q)
-      );
-    });
-  }, [scanSearch]);
+  // Modals state
+  const [deletingScan, setDeletingScan] = useState<BodyMeasurement | null>(null);
 
-  React.useEffect(() => {
-    setScanPage(1);
-  }, [scanSearch]);
+  // 1. Query: Analytics & Chart Data (with instant cache invalidation on focus/mount)
+  const {
+    data: analytics,
+    isLoading: isAnalyticsLoading,
+  } = useQuery({
+    queryKey: ['body-composition-analytics', timeRange],
+    queryFn: () => bodyService.getAnalytics(timeRange),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
 
-  const totalScanPages = Math.ceil(filteredScans.length / scanPageSize) || 1;
-  const paginatedScans = React.useMemo(() => {
-    const start = (scanPage - 1) * scanPageSize;
-    return filteredScans.slice(start, start + scanPageSize);
-  }, [filteredScans, scanPage, scanPageSize]);
+  // 2. Query: Measurements History Table
+  const {
+    data: measurementsData,
+    isLoading: isMeasurementsLoading,
+  } = useQuery({
+    queryKey: ['body-measurements', scanPage, scanPageSize, scanSearch],
+    queryFn: () =>
+      bodyService.getMeasurements({
+        page: scanPage,
+        limit: scanPageSize,
+        search: scanSearch || undefined,
+      }),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
 
-  const activeData = React.useMemo(() => {
-    switch (timeRange) {
-      case '7d':
-        return history7d;
-      case '30d':
-        return history30d;
-      case '90d':
-        return history90d;
-      case '1y':
-        return history1y;
-      default:
-        return history30d;
+  // 3. Mutation: Delete Scan
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => bodyService.deleteMeasurement(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['body-composition-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['body-measurements'] });
+      setDeletingScan(null);
+    },
+  });
+
+  const summary = analytics?.summary;
+  const chartPeriod = analytics?.chartPeriod;
+  const rawChartData = analytics?.chartData || [];
+
+  // If there's only 1 point, duplicate with slightly earlier label or point so Recharts Area/Line renders smoothly
+  const chartData = React.useMemo(() => {
+    if (rawChartData.length === 1) {
+      return [
+        {
+          ...rawChartData[0],
+          displayDate: 'Awal',
+        },
+        rawChartData[0],
+      ];
     }
-  }, [timeRange]);
+    return rawChartData;
+  }, [rawChartData]);
 
-  const stats = React.useMemo(() => {
-    const first = activeData[0][activeChartMetric];
-    const last = activeData[activeData.length - 1][activeChartMetric];
-    const delta = +(last - first).toFixed(1);
-    const unit = activeChartMetric === 'bodyFatPct' ? '%' : 'kg';
+  // Computed stats for the active metric
+  const metricStats = React.useMemo(() => {
+    if (!rawChartData || rawChartData.length === 0) {
+      const fallbackVal =
+        activeChartMetric === 'weightKg'
+          ? summary?.currentWeightKg || 0
+          : activeChartMetric === 'smmKg'
+          ? summary?.currentSmmKg || 0
+          : summary?.currentBodyFatKg || 0;
+      return { first: fallbackVal, last: fallbackVal, delta: 0, unit: 'kg' };
+    }
+
+    const firstPoint = rawChartData[0];
+    const lastPoint = rawChartData[rawChartData.length - 1];
+
+    const firstVal = firstPoint[activeChartMetric] ?? 0;
+    const lastVal = lastPoint[activeChartMetric] ?? 0;
+    const delta = +(lastVal - firstVal).toFixed(1);
 
     return {
-      first,
-      last,
+      first: firstVal,
+      last: lastVal,
       delta,
-      unit,
+      unit: 'kg',
     };
-  }, [activeData, activeChartMetric]);
+  }, [rawChartData, activeChartMetric, summary]);
+
+  const formatEvaluationDate = (dateStr?: string | null) => {
+    if (!dateStr) return 'Evaluasi: Terkini';
+    const d = new Date(dateStr);
+    const day = d.getDate().toString().padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `Evaluasi: ${day} ${month} ${year}`;
+  };
+
+  const formatReceiptDate = (dateStr?: string | null) => {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    const day = d.getDate().toString().padStart(2, '0');
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    const hours = d.getHours().toString().padStart(2, '0');
+    const mins = d.getMinutes().toString().padStart(2, '0');
+    return `${day} ${month} ${year} · ${hours}:${mins} WIB`;
+  };
+
+  const formatTableDate = (dateStr?: string | null) => {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    const day = d.getDate().toString().padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
+  // Support both items and data, pagination and meta from API
+  const tableRows: BodyMeasurement[] =
+    measurementsData?.items || measurementsData?.data || [];
+  const totalItems: number =
+    measurementsData?.pagination?.totalItems ??
+    measurementsData?.meta?.total ??
+    tableRows.length;
+  const totalPages: number =
+    measurementsData?.pagination?.totalPages ??
+    measurementsData?.meta?.totalPages ??
+    (totalItems > 0 ? Math.ceil(totalItems / scanPageSize) : 1);
 
   return (
     <AppShell>
-      {/* Header & Quick Action */}
+      {/* Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold font-[var(--font-display)] text-[var(--text-primary)]">
             Analitik Komposisi Tubuh
           </h1>
           <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-0.5">
-            Visualisasi historis & tren perubahan elemen tubuh dari hasil analisa mesin gym (InBody / Tanita).
+            Visualisasi historis & tren perubahan elemen tubuh dari profil biometrik Anda. Semua massa lemak diukur dalam kilogram (kg).
           </p>
         </div>
 
         <Link href="/profile">
-          <Button variant="primary" size="md">
-            <Scale className="w-4 h-4 mr-2" />
-            Perbarui Data di Profil & Kalori
+          <Button variant="primary" size="md" className="text-xs font-bold shadow-md">
+            <Scale className="w-4 h-4 mr-1.5" />
+            Perbarui Profil & Kalori
             <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
         </Link>
@@ -243,60 +296,103 @@ export default function BodyCompositionPage() {
 
       {/* Primary Hero Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <MetricCard
-          label="Berat Total Terkini"
-          value="104.1"
-          unit="kg"
-          trend={{
-            direction: 'DOWN',
-            value: '1.1 kg',
-            percentage: '-1.0',
-            alignment: 'NEUTRAL',
-          }}
-          subValue="Evaluasi: 01 Okt 2026"
-          icon={<Scale className="w-4 h-4 text-[var(--accent-secondary)]" />}
-          size="hero"
-        />
+        {isAnalyticsLoading ? (
+          <>
+            <Skeleton className="h-32 rounded-[8px]" />
+            <Skeleton className="h-32 rounded-[8px]" />
+            <Skeleton className="h-32 rounded-[8px]" />
+            <Skeleton className="h-32 rounded-[8px]" />
+          </>
+        ) : (
+          <>
+            {/* Berat Total Terkini */}
+            <MetricCard
+              label="Berat Total Terkini"
+              value={summary?.currentWeightKg ? summary.currentWeightKg.toFixed(1) : '-'}
+              unit="kg"
+              trend={
+                summary?.weightDeltaKg !== null && summary?.weightDeltaKg !== undefined
+                  ? {
+                      direction: summary.weightDeltaKg > 0 ? 'UP' : summary.weightDeltaKg < 0 ? 'DOWN' : 'UP',
+                      value: `${Math.abs(summary.weightDeltaKg)} kg`,
+                      percentage: summary.weightDeltaPct !== null ? `${summary.weightDeltaPct > 0 ? '+' : ''}${summary.weightDeltaPct}%` : undefined,
+                      alignment: 'NEUTRAL',
+                    }
+                  : undefined
+              }
+              subValue={formatEvaluationDate(summary?.latestEvaluationDate)}
+              icon={<Scale className="w-4 h-4 text-[var(--accent-secondary)]" />}
+              size="hero"
+            />
 
-        <MetricCard
-          label="Skeletal Muscle Mass (SMM)"
-          value="35.8"
-          unit="kg"
-          trend={{
-            direction: 'UP',
-            value: '0.4 kg',
-            percentage: '+1.1',
-            alignment: 'ON_TRACK', // Progressive muscle gain
-          }}
-          subValue="Normal ref: 26.3 - 32.6 kg"
-          icon={<Dumbbell className="w-4 h-4 text-[var(--color-moss-600)]" />}
-        />
+            {/* Skeletal Muscle Mass (SMM) */}
+            <MetricCard
+              label="Skeletal Muscle Mass (SMM)"
+              value={summary?.currentSmmKg ? summary.currentSmmKg.toFixed(1) : '-'}
+              unit="kg"
+              trend={
+                summary?.smmDeltaKg !== null && summary?.smmDeltaKg !== undefined
+                  ? {
+                      direction: summary.smmDeltaKg >= 0 ? 'UP' : 'DOWN',
+                      value: `${Math.abs(summary.smmDeltaKg)} kg`,
+                      percentage: summary.smmDeltaPct !== null ? `${summary.smmDeltaPct > 0 ? '+' : ''}${summary.smmDeltaPct}%` : undefined,
+                      alignment: summary.smmDeltaKg >= 0 ? 'ON_TRACK' : 'NEUTRAL',
+                    }
+                  : undefined
+              }
+              subValue={
+                summary
+                  ? `Normal ref: ${summary.smmNormalRefMin} - ${summary.smmNormalRefMax} kg`
+                  : undefined
+              }
+              icon={<Dumbbell className="w-4 h-4 text-[var(--color-moss-600)]" />}
+            />
 
-        <MetricCard
-          label="Body Fat (%) & Massa (kg)"
-          value="38.1"
-          unit="% (39.7 kg)"
-          trend={{
-            direction: 'DOWN',
-            value: '1.0%',
-            alignment: 'NEUTRAL',
-          }}
-          subValue="Fat-Free Mass: 64.4 kg"
-          icon={<TrendingDown className="w-4 h-4 text-[var(--accent-primary)]" />}
-        />
+            {/* Massa Lemak (Body Fat KG only) */}
+            <MetricCard
+              label="Massa Lemak (Body Fat)"
+              value={summary?.currentBodyFatKg ? summary.currentBodyFatKg.toFixed(1) : '-'}
+              unit="kg"
+              trend={
+                summary?.bodyFatKgDelta !== null && summary?.bodyFatKgDelta !== undefined
+                  ? {
+                      direction: summary.bodyFatKgDelta <= 0 ? 'DOWN' : 'UP',
+                      value: `${Math.abs(summary.bodyFatKgDelta)} kg`,
+                      alignment: summary.bodyFatKgDelta <= 0 ? 'ON_TRACK' : 'NEUTRAL',
+                    }
+                  : undefined
+              }
+              subValue={
+                summary?.currentFatFreeMassKg
+                  ? `Massa Bebas Lemak: ${summary.currentFatFreeMassKg.toFixed(1)} kg`
+                  : undefined
+              }
+              icon={<TrendingDown className="w-4 h-4 text-[var(--accent-primary)]" />}
+            />
 
-        <MetricCard
-          label="Kandungan Air (Water Content)"
-          value="45.7"
-          unit="kg"
-          trend={{
-            direction: 'UP',
-            value: '0.7 kg',
-            alignment: 'NEUTRAL',
-          }}
-          subValue="Protein: 14.9kg · Mineral: 3.73kg"
-          icon={<Droplets className="w-4 h-4 text-sky-400" />}
-        />
+            {/* Kandungan Air (Water Content) */}
+            <MetricCard
+              label="Kandungan Air (Water Content)"
+              value={summary?.currentWaterContentKg ? summary.currentWaterContentKg.toFixed(1) : '-'}
+              unit="kg"
+              trend={
+                summary?.waterContentKgDelta !== null && summary?.waterContentKgDelta !== undefined
+                  ? {
+                      direction: summary.waterContentKgDelta >= 0 ? 'UP' : 'DOWN',
+                      value: `${Math.abs(summary.waterContentKgDelta)} kg`,
+                      alignment: 'NEUTRAL',
+                    }
+                  : undefined
+              }
+              subValue={
+                summary
+                  ? `Protein: ${summary.currentProteinKg ? summary.currentProteinKg.toFixed(1) : '-'} kg · Mineral: ${summary.currentMineralKg ? summary.currentMineralKg.toFixed(2) : '-'} kg`
+                  : undefined
+              }
+              icon={<Droplets className="w-4 h-4 text-sky-400" />}
+            />
+          </>
+        )}
       </div>
 
       <Divider thick />
@@ -307,9 +403,11 @@ export default function BodyCompositionPage() {
           <div>
             <h3 className="text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-[var(--accent-secondary)]" />
-              Detail Elemen Struk Analyzer Terakhir (#20555-1)
+              Detail Elemen Komposisi Tubuh Terakhir ({summary?.receiptNumber || 'Profil Aktif'})
             </h3>
-            <p className="text-xs text-[var(--text-secondary)]">01 Oktober 2026 · 13:32 WIB</p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              {formatReceiptDate(summary?.receiptTimestamp)}
+            </p>
           </div>
 
           <span className="text-xs text-[var(--color-moss-600)] font-semibold flex items-center gap-1">
@@ -321,15 +419,15 @@ export default function BodyCompositionPage() {
           <div className="p-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-sm">
             <span className="text-[11px] text-[var(--text-tertiary)] block">Massa Bebas Lemak</span>
             <span className="text-lg font-bold font-[var(--font-display)] tabular-nums text-[var(--text-primary)]">
-              64.4 kg
+              {summary?.currentFatFreeMassKg ? `${summary.currentFatFreeMassKg.toFixed(1)} kg` : '-'}
             </span>
-            <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Remove Fat W.</span>
+            <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Fat Free Mass</span>
           </div>
 
           <div className="p-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-sm">
             <span className="text-[11px] text-[var(--text-tertiary)] block">Massa Lemak</span>
             <span className="text-lg font-bold font-[var(--font-display)] tabular-nums text-[var(--accent-primary)]">
-              39.7 kg
+              {summary?.currentBodyFatKg ? `${summary.currentBodyFatKg.toFixed(1)} kg` : '-'}
             </span>
             <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Body Fat Mass</span>
           </div>
@@ -337,7 +435,7 @@ export default function BodyCompositionPage() {
           <div className="p-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-sm">
             <span className="text-[11px] text-[var(--text-tertiary)] block">Protein</span>
             <span className="text-lg font-bold font-[var(--font-display)] tabular-nums text-[var(--text-primary)]">
-              14.9 kg
+              {summary?.currentProteinKg ? `${summary.currentProteinKg.toFixed(1)} kg` : '-'}
             </span>
             <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Normal: 9.4 - 11.2</span>
           </div>
@@ -345,7 +443,7 @@ export default function BodyCompositionPage() {
           <div className="p-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-sm">
             <span className="text-[11px] text-[var(--text-tertiary)] block">Inorganic Salt</span>
             <span className="text-lg font-bold font-[var(--font-display)] tabular-nums text-[var(--text-primary)]">
-              3.73 kg
+              {summary?.currentMineralKg ? `${summary.currentMineralKg.toFixed(2)} kg` : '-'}
             </span>
             <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Mineral Tulang</span>
           </div>
@@ -353,7 +451,7 @@ export default function BodyCompositionPage() {
           <div className="p-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-sm">
             <span className="text-[11px] text-[var(--text-tertiary)] block">Water Content</span>
             <span className="text-lg font-bold font-[var(--font-display)] tabular-nums text-sky-400">
-              45.7 kg
+              {summary?.currentWaterContentKg ? `${summary.currentWaterContentKg.toFixed(1)} kg` : '-'}
             </span>
             <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Total Body Water</span>
           </div>
@@ -361,9 +459,11 @@ export default function BodyCompositionPage() {
           <div className="p-3.5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-sm">
             <span className="text-[11px] text-[var(--text-tertiary)] block">BMI</span>
             <span className="text-lg font-bold font-[var(--font-display)] tabular-nums text-[var(--accent-secondary)]">
-              36.4
+              {summary?.bmi ? summary.bmi.toFixed(1) : '-'}
             </span>
-            <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Normal: 18.5 - 25.0</span>
+            <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
+              Normal: {summary?.bmiNormalRefMin || 18.5} - {summary?.bmiNormalRefMax || 25.0}
+            </span>
           </div>
         </div>
       </section>
@@ -385,19 +485,20 @@ export default function BodyCompositionPage() {
                   Grafik perkembangan komposisi tubuh (historis)
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Evaluasi pergerakan berat, massa otot rangka, dan kadar lemak dengan sensor visual presisi tinggi.
+                  Evaluasi pergerakan berat, massa otot rangka, dan massa lemak (kg) dengan sensor visual presisi tinggi.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Metric Switcher */}
+            {/* Metric Switcher - Lemak in KG only */}
             <div className="flex rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-base)] p-1 text-xs">
               <button
-                onClick={() => setActiveChartMetric('weight')}
+                type="button"
+                onClick={() => setActiveChartMetric('weightKg')}
                 className={`px-3 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
-                  activeChartMetric === 'weight'
+                  activeChartMetric === 'weightKg'
                     ? 'bg-[var(--accent-primary)] text-[var(--accent-primary-ink)] font-bold'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
@@ -405,9 +506,10 @@ export default function BodyCompositionPage() {
                 Berat (kg)
               </button>
               <button
-                onClick={() => setActiveChartMetric('smm')}
+                type="button"
+                onClick={() => setActiveChartMetric('smmKg')}
                 className={`px-3 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
-                  activeChartMetric === 'smm'
+                  activeChartMetric === 'smmKg'
                     ? 'bg-[var(--color-moss-600)] text-white font-bold'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
@@ -415,14 +517,15 @@ export default function BodyCompositionPage() {
                 Otot SMM (kg)
               </button>
               <button
-                onClick={() => setActiveChartMetric('bodyFatPct')}
+                type="button"
+                onClick={() => setActiveChartMetric('bodyFatKg')}
                 className={`px-3 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
-                  activeChartMetric === 'bodyFatPct'
+                  activeChartMetric === 'bodyFatKg'
                     ? 'bg-[var(--accent-secondary)] text-[var(--bg-base)] font-bold'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
-                Body Fat (%)
+                Massa Lemak (kg)
               </button>
             </div>
 
@@ -431,6 +534,7 @@ export default function BodyCompositionPage() {
               {(['7d', '30d', '90d', '1y'] as const).map((range) => (
                 <button
                   key={range}
+                  type="button"
                   onClick={() => setTimeRange(range)}
                   className={`px-2.5 py-1 rounded-[4px] font-semibold transition-all cursor-pointer ${
                     timeRange === range
@@ -450,14 +554,14 @@ export default function BodyCompositionPage() {
           <div className="p-2.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)]">
             <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Awal periode</span>
             <span className="text-sm font-bold font-[var(--font-display)] text-[var(--text-primary)] tabular-nums">
-              {stats.first} {stats.unit}
+              {metricStats.first} {metricStats.unit}
             </span>
           </div>
 
           <div className="p-2.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)]">
             <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Nilai terkini</span>
             <span className="text-sm font-bold font-[var(--font-display)] text-[var(--text-primary)] tabular-nums">
-              {stats.last} {stats.unit}
+              {metricStats.last} {metricStats.unit}
             </span>
           </div>
 
@@ -465,135 +569,153 @@ export default function BodyCompositionPage() {
             <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Total perubahan</span>
             <span
               className={`text-sm font-bold font-[var(--font-display)] tabular-nums ${
-                activeChartMetric === 'smm'
-                  ? stats.delta >= 0
+                activeChartMetric === 'smmKg'
+                  ? metricStats.delta >= 0
                     ? 'text-[var(--color-moss-600)]'
                     : 'text-[var(--accent-primary)]'
-                  : stats.delta <= 0
+                  : metricStats.delta <= 0
                   ? 'text-[var(--color-moss-600)]'
                   : 'text-[var(--accent-primary)]'
               }`}
             >
-              {stats.delta > 0 ? `+${stats.delta}` : stats.delta} {stats.unit}
+              {metricStats.delta > 0 ? `+${metricStats.delta}` : metricStats.delta} {metricStats.unit}
             </span>
           </div>
 
-          <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
+          <div className="p-2.5 rounded-[4px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
             <div>
               <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">Evaluasi tren</span>
-              <span className="text-sm font-bold font-[var(--font-display)] text-[#4CD6DE] flex items-center gap-1">
-                {activeChartMetric === 'smm' ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                {activeChartMetric === 'smm' ? 'Otot meningkat (+0.4 kg)' : 'Lemak menurun (-0.6%)'}
+              <span className="text-xs font-bold font-[var(--font-display)] text-[#4CD6DE] flex items-center gap-1">
+                {activeChartMetric === 'smmKg' ? (
+                  metricStats.delta >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />
+                ) : (
+                  metricStats.delta <= 0 ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />
+                )}
+                {chartPeriod?.trendEvaluation || 'Komposisi stabil'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Clean Kinetic Area Chart (Activity Curve Style) */}
+        {/* Kinetic Area Chart */}
         <div className="h-72 w-full pt-3">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={activeData} margin={{ top: 15, right: 15, left: -15, bottom: 0 }}>
-              <defs>
-                <linearGradient id="bodyCompGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor={
-                      activeChartMetric === 'weight'
-                        ? '#FF6B2C'
-                        : activeChartMetric === 'smm'
-                        ? '#4CD6DE'
-                        : '#FFA726'
-                    }
-                    stopOpacity={0.25}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={
-                      activeChartMetric === 'weight'
-                        ? '#FF6B2C'
-                        : activeChartMetric === 'smm'
-                        ? '#4CD6DE'
-                        : '#FFA726'
-                    }
-                    stopOpacity={0.0}
-                  />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
-              <XAxis
-                dataKey="date"
-                stroke="#646A7C"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                domain={['dataMin - 1', 'dataMax + 1']}
-                stroke="#646A7C"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                unit={activeChartMetric === 'bodyFatPct' ? '%' : 'kg'}
-              />
+          {isAnalyticsLoading ? (
+            <Skeleton className="h-full w-full rounded-[6px]" />
+          ) : chartData.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] space-y-2">
+              <FileSpreadsheet className="w-8 h-8 text-[var(--text-tertiary)]" />
+              <p className="text-xs">Belum ada riwayat data komposisi dalam periode ini.</p>
+              <Link href="/profile">
+                <Button variant="secondary" size="sm" className="text-xs">
+                  Perbarui Data Profil
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 15, right: 15, left: -15, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="bodyCompGlow" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor={
+                        activeChartMetric === 'weightKg'
+                          ? '#FF6B2C'
+                          : activeChartMetric === 'smmKg'
+                          ? '#4CD6DE'
+                          : '#FFA726'
+                      }
+                      stopOpacity={0.25}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={
+                        activeChartMetric === 'weightKg'
+                          ? '#FF6B2C'
+                          : activeChartMetric === 'smmKg'
+                          ? '#4CD6DE'
+                          : '#FFA726'
+                      }
+                      stopOpacity={0.0}
+                    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
+                <XAxis
+                  dataKey="displayDate"
+                  stroke="#646A7C"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  domain={['dataMin - 1', 'dataMax + 1']}
+                  stroke="#646A7C"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  unit="kg"
+                />
 
-              <Tooltip
-                cursor={{
-                  stroke:
-                    activeChartMetric === 'weight'
-                      ? '#FF6B2C'
-                      : activeChartMetric === 'smm'
-                      ? '#4CD6DE'
-                      : '#FFA726',
-                  strokeDasharray: '3 3',
-                  strokeWidth: 1.5,
-                }}
-                content={<CustomBodyCompTooltip metric={activeChartMetric} />}
-              />
+                <Tooltip
+                  cursor={{
+                    stroke:
+                      activeChartMetric === 'weightKg'
+                        ? '#FF6B2C'
+                        : activeChartMetric === 'smmKg'
+                        ? '#4CD6DE'
+                        : '#FFA726',
+                    strokeDasharray: '3 3',
+                    strokeWidth: 1.5,
+                  }}
+                  content={<CustomBodyCompTooltip metric={activeChartMetric} />}
+                />
 
-              <Area
-                type="monotone"
-                dataKey={activeChartMetric}
-                name={
-                  activeChartMetric === 'weight'
-                    ? 'Berat Total (kg)'
-                    : activeChartMetric === 'smm'
-                    ? 'Skeletal Muscle Mass (kg)'
-                    : 'Body Fat (%)'
-                }
-                stroke={
-                  activeChartMetric === 'weight'
-                    ? '#FF6B2C'
-                    : activeChartMetric === 'smm'
-                    ? '#4CD6DE'
-                    : '#FFA726'
-                }
-                strokeWidth={3}
-                fill="url(#bodyCompGlow)"
-                dot={{
-                  r: 4,
-                  fill:
-                    activeChartMetric === 'weight'
+                <Area
+                  type="monotone"
+                  dataKey={activeChartMetric}
+                  name={
+                    activeChartMetric === 'weightKg'
+                      ? 'Berat Total (kg)'
+                      : activeChartMetric === 'smmKg'
+                      ? 'Skeletal Muscle Mass (kg)'
+                      : 'Massa Lemak (kg)'
+                  }
+                  stroke={
+                    activeChartMetric === 'weightKg'
                       ? '#FF6B2C'
-                      : activeChartMetric === 'smm'
+                      : activeChartMetric === 'smmKg'
                       ? '#4CD6DE'
-                      : '#FFA726',
-                  stroke: '#121316',
-                  strokeWidth: 2,
-                }}
-                activeDot={{
-                  r: 6,
-                  stroke: '#FFFFFF',
-                  strokeWidth: 2,
-                  fill:
-                    activeChartMetric === 'weight'
-                      ? '#FF6B2C'
-                      : activeChartMetric === 'smm'
-                      ? '#4CD6DE'
-                      : '#FFA726',
-                }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+                      : '#FFA726'
+                  }
+                  strokeWidth={3}
+                  fill="url(#bodyCompGlow)"
+                  dot={{
+                    r: 4,
+                    fill:
+                      activeChartMetric === 'weightKg'
+                        ? '#FF6B2C'
+                        : activeChartMetric === 'smmKg'
+                        ? '#4CD6DE'
+                        : '#FFA726',
+                    stroke: '#121316',
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{
+                    r: 6,
+                    stroke: '#FFFFFF',
+                    strokeWidth: 2,
+                    fill:
+                      activeChartMetric === 'weightKg'
+                        ? '#FF6B2C'
+                        : activeChartMetric === 'smmKg'
+                        ? '#4CD6DE'
+                        : '#FFA726',
+                  }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -607,7 +729,7 @@ export default function BodyCompositionPage() {
           <div>
             <h2 className="text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-[var(--accent-primary)]" />
-              Tabel riwayat scan InBody ({filteredScans.length} data scan)
+              Tabel riwayat scan & update profil ({totalItems} data)
             </h2>
             <p className="text-xs text-[var(--text-secondary)]">
               Rekapitulasi pengukuran body composition berkala beserta analisis delta dan PR.
@@ -618,9 +740,12 @@ export default function BodyCompositionPage() {
             <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Cari tanggal atau evaluasi..."
+              placeholder="Cari evaluasi atau tanggal..."
               value={scanSearch}
-              onChange={(e) => setScanSearch(e.target.value)}
+              onChange={(e) => {
+                setScanSearch(e.target.value);
+                setScanPage(1);
+              }}
               className="w-full h-9 pl-9 pr-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)]"
             />
           </div>
@@ -632,25 +757,34 @@ export default function BodyCompositionPage() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-[var(--border-default)] bg-[var(--bg-base)] text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                  <th className="py-3 px-4">Tanggal Scan</th>
+                  <th className="py-3 px-4">Tanggal Pengukuran</th>
                   <th className="py-3 px-4 text-right">Berat Badan</th>
                   <th className="py-3 px-4 text-right">Otot (SMM)</th>
-                  <th className="py-3 px-4 text-right">Body Fat (%)</th>
-                  <th className="py-3 px-4 text-right">Lemak (kg)</th>
-                  <th className="py-3 px-4 text-right">Air Tubuh (%)</th>
+                  <th className="py-3 px-4 text-right">Massa Lemak (kg)</th>
+                  <th className="py-3 px-4 text-right">Bebas Lemak (FFM)</th>
+                  <th className="py-3 px-4 text-right">Air Tubuh (kg)</th>
                   <th className="py-3 px-4 text-right">BMI</th>
                   <th className="py-3 px-4">Evaluasi / Status</th>
+                  <th className="py-3 px-3 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-default)]/50">
-                {paginatedScans.length === 0 ? (
+                {isMeasurementsLoading ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-[var(--text-secondary)]">
-                      Tidak ada data scan yang cocok dengan pencarian &quot;{scanSearch}&quot;.
+                    <td colSpan={9} className="py-8 text-center text-[var(--text-secondary)]">
+                      Memuat data scan...
+                    </td>
+                  </tr>
+                ) : !tableRows || tableRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-8 text-center text-[var(--text-secondary)]">
+                      {scanSearch
+                        ? `Tidak ada data yang cocok dengan pencarian "${scanSearch}".`
+                        : 'Belum ada data riwayat body composition. Perbarui data Anda di menu Profil untuk mulai memantau.'}
                     </td>
                   </tr>
                 ) : (
-                  paginatedScans.map((scan) => (
+                  tableRows.map((scan) => (
                     <tr
                       key={scan.id}
                       className="hover:bg-[var(--bg-base)]/60 transition-colors group"
@@ -659,7 +793,7 @@ export default function BodyCompositionPage() {
                       <td className="py-3 px-4 whitespace-nowrap font-medium text-[var(--text-primary)]">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--accent-primary)] transition-colors" />
-                          <span>{scan.displayDate}</span>
+                          <span>{formatTableDate(scan.measuredAt)}</span>
                           {scan.status === 'PR_COMPOSITION' && (
                             <span className="px-1.5 py-0.2 rounded bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/40 text-[9px] font-bold text-[var(--accent-primary)]">
                               BEST
@@ -670,55 +804,57 @@ export default function BodyCompositionPage() {
 
                       {/* Berat Badan */}
                       <td className="py-3 px-4 text-right whitespace-nowrap font-bold font-mono text-[var(--text-primary)]">
-                        {scan.weight} kg
-                        <span className="block text-[10px] text-[var(--color-moss-600)] font-normal">
-                          {scan.weightDelta}
-                        </span>
+                        {scan.weightKg ? scan.weightKg.toFixed(1) : '-'} kg
                       </td>
 
                       {/* SMM */}
                       <td className="py-3 px-4 text-right whitespace-nowrap font-bold font-mono text-[var(--color-moss-600)]">
-                        {scan.smm} kg
-                        <span className="block text-[10px] text-[var(--color-moss-600)] font-normal">
-                          {scan.smmDelta}
-                        </span>
+                        {scan.skeletalMuscleKg !== null && scan.skeletalMuscleKg !== undefined
+                          ? `${scan.skeletalMuscleKg.toFixed(1)} kg`
+                          : '-'}
                       </td>
 
-                      {/* Body Fat % */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap font-bold font-mono text-[var(--accent-secondary)]">
-                        {scan.bodyFatPct}%
+                      {/* Massa Lemak in kg only */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap font-bold font-mono text-[var(--accent-primary)]">
+                        {scan.bodyFatKg !== null && scan.bodyFatKg !== undefined
+                          ? `${scan.bodyFatKg.toFixed(1)} kg`
+                          : '-'}
                       </td>
 
-                      {/* Lemak (kg) */}
+                      {/* FFM */}
                       <td className="py-3 px-4 text-right whitespace-nowrap font-mono text-[var(--text-secondary)]">
-                        {scan.bodyFatKg} kg
+                        {scan.fatFreeMassKg !== null && scan.fatFreeMassKg !== undefined
+                          ? `${scan.fatFreeMassKg.toFixed(1)} kg`
+                          : '-'}
                       </td>
 
-                      {/* TBW */}
+                      {/* TBW Water Content in kg */}
                       <td className="py-3 px-4 text-right whitespace-nowrap font-mono text-sky-400">
-                        {scan.waterContent}%
+                        {scan.waterContentKg !== null && scan.waterContentKg !== undefined
+                          ? `${scan.waterContentKg.toFixed(1)} kg`
+                          : '-'}
                       </td>
 
                       {/* BMI */}
                       <td className="py-3 px-4 text-right whitespace-nowrap font-mono text-[var(--text-secondary)]">
-                        {scan.bmi}
+                        {scan.bmi !== null && scan.bmi !== undefined ? scan.bmi.toFixed(1) : '-'}
                       </td>
 
                       {/* Status / Evaluasi */}
                       <td className="py-3 px-4">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-[4px] text-[10px] font-semibold ${
-                            scan.status === 'PR_COMPOSITION'
-                              ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/40'
-                              : scan.status === 'MUSCLE_GAIN'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                              : scan.status === 'FAT_LOSS'
-                              ? 'bg-[var(--color-moss-600)]/20 text-[var(--color-moss-600)] border border-[var(--color-moss-600)]/40'
-                              : 'bg-[var(--bg-base)] text-[var(--text-secondary)] border border-[var(--border-default)]'
-                          }`}
+                        {getStatusBadge(scan.status, scan.evaluation)}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setDeletingScan(scan)}
+                          className="p-1.5 rounded-[4px] text-[var(--text-tertiary)] hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="Hapus data"
                         >
-                          {scan.evaluation}
-                        </span>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -728,23 +864,44 @@ export default function BodyCompositionPage() {
           </div>
 
           {/* InBody Table Pagination */}
-          <div className="p-3 bg-[var(--bg-base)]/40">
-            <Pagination
-              currentPage={scanPage}
-              totalPages={totalScanPages}
-              totalItems={filteredScans.length}
-              pageSize={scanPageSize}
-              onPageChange={setScanPage}
-              onPageSizeChange={(newSize) => {
-                setScanPageSize(newSize);
-                setScanPage(1);
-              }}
-              pageSizeOptions={[1, 5, 10, 15, 20]}
-              itemLabel="data scan InBody"
-            />
-          </div>
+          {totalItems > 0 && totalPages > 0 && (
+            <div className="p-3 bg-[var(--bg-base)]/40 border-t border-[var(--border-default)]/60">
+              <Pagination
+                currentPage={scanPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={scanPageSize}
+                onPageChange={setScanPage}
+                onPageSizeChange={(newSize) => {
+                  setScanPageSize(newSize);
+                  setScanPage(1);
+                }}
+                pageSizeOptions={[5, 10, 15, 20]}
+                itemLabel="data scan"
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!deletingScan}
+        onClose={() => setDeletingScan(null)}
+        onConfirm={async () => {
+          if (deletingScan) {
+            await deleteMutation.mutateAsync(deletingScan.id);
+          }
+        }}
+        title="Hapus Data"
+        description={`Apakah Anda yakin ingin menghapus data tanggal ${
+          deletingScan ? formatTableDate(deletingScan.measuredAt) : ''
+        }? Data yang dihapus tidak dapat dipulihkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+      />
     </AppShell>
   );
 }

@@ -27,11 +27,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from '@/hooks/useDebounce';
 import { calorieService } from '@/services/calorie.service';
 import { CaloriePreviewResult } from '@/types/calorie.types';
 
 export default function ProfilePage() {
+  const queryClient = useQueryClient();
   // Account state (strictly populated from API or user input)
   const [fullName, setFullName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -407,6 +409,12 @@ export default function ProfilePage() {
       } catch {
         // Silently retain current preview
       }
+
+      // Invalidate caches so body composition and dashboard update immediately
+      queryClient.invalidateQueries({ queryKey: ['body-composition-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['body-measurements'] });
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['calorie-target'] });
 
       const successMessage = res?.message || (rawRes as any)?.message || 'Profil fisik dan target kalori harian berhasil disimpan.';
       toast.success(successMessage);
