@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '@/components/common/AppShell';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,7 @@ import {
   ExerciseMaster,
   MuscleGroupCategory,
   WorkoutTelemetryAggregates,
+  WorkoutSession,
 } from '@/types/workout.types';
 import { exerciseService } from '@/services/exercise.service';
 import { workoutService } from '@/services/workout.service';
@@ -37,6 +39,8 @@ import {
   Layers,
   CheckCircle2,
   Loader2,
+  Play,
+  RotateCcw,
 } from 'lucide-react';
 import { formatNumber, formatDuration } from '@/lib/utils';
 import {
@@ -75,291 +79,123 @@ export const MONTH_NAMES = [
   { num: '12', name: 'Desember', short: 'Des' },
 ];
 
-export interface WorkoutHistoryItem {
-  id: string;
-  name: string;
-  date: string; // YYYY-MM-DD
-  displayDate: string;
-  durationMinutes: number;
-  activeMinutes: number;
-  restMinutes: number;
-  volumeKg: number;
-  totalSets: number;
-  hasPr: boolean;
-  prDetails?: string;
-  cardioMinutes?: number;
-  cardioDistanceKm?: number;
-  caloriesBurned?: number;
-  exercises: {
-    name: string;
-    equipment: string;
-    muscle: string;
-    setsSummary: string;
-    bestSet: string;
-  }[];
-}
-
-// Sample Database of Workouts
-const allWorkoutHistory: WorkoutHistoryItem[] = [
-  {
-    id: 'w-today',
-    name: 'Push Day (Dada, Bahu & Triceps)',
-    date: '2026-09-09',
-    displayDate: 'Hari Ini, 09 Sep 2026',
-    durationMinutes: 65,
-    activeMinutes: 36,
-    restMinutes: 29,
-    volumeKg: 1780,
-    totalSets: 14,
-    hasPr: true,
-    prDetails: 'Incline DB Press (30kg × 8 reps)',
-    cardioMinutes: 15,
-    cardioDistanceKm: 2.0,
-    caloriesBurned: 380,
-    exercises: [
-      { name: 'Barbell Bench Press', equipment: 'Barbell', muscle: 'Dada', setsSummary: '4 Set (60kg x 10, 70kg x 8, 75kg x 6, 80kg x 4)', bestSet: '80 kg x 4' },
-      { name: 'Incline Dumbbell Press', equipment: 'Dumbbell', muscle: 'Dada', setsSummary: '3 Set (26kg x 10, 28kg x 8, 30kg x 8)', bestSet: '30 kg x 8 (PR)' },
-      { name: 'Standing Overhead Barbell Press', equipment: 'Barbell', muscle: 'Bahu', setsSummary: '3 Set (40kg x 10, 45kg x 8, 50kg x 6)', bestSet: '50 kg x 6' },
-      { name: 'Cable Tricep Pushdown', equipment: 'Cable', muscle: 'Triceps', setsSummary: '4 Set (30kg x 12, 35kg x 10, 35kg x 10, 40kg x 8)', bestSet: '40 kg x 8' },
-    ],
-  },
-  {
-    id: 'w-1',
-    name: 'Chest & Triceps Focus Session',
-    date: '2026-09-08',
-    displayDate: 'Kemarin, 08 Sep 2026',
-    durationMinutes: 60,
-    activeMinutes: 32,
-    restMinutes: 28,
-    volumeKg: 1680,
-    totalSets: 14,
-    hasPr: true,
-    prDetails: 'Barbell Bench Press (82.5kg × 6 reps)',
-    cardioMinutes: 0,
-    cardioDistanceKm: 0,
-    caloriesBurned: 310,
-    exercises: [
-      { name: 'Barbell Bench Press', equipment: 'Barbell', muscle: 'Dada', setsSummary: '3 Set (60kg x 10, 70kg x 8, 82.5kg x 6)', bestSet: '82.5 kg x 6 (PR)' },
-      { name: 'Incline Dumbbell Press', equipment: 'Dumbbell', muscle: 'Dada', setsSummary: '3 Set (24kg x 12, 26kg x 10, 28kg x 8)', bestSet: '28 kg x 8' },
-      { name: 'Cable Tricep Pushdown', equipment: 'Cable', muscle: 'Triceps', setsSummary: '4 Set (30kg x 12, 35kg x 10, 35kg x 10, 35kg x 8)', bestSet: '35 kg x 10' },
-      { name: 'Cable Chest Fly', equipment: 'Cable', muscle: 'Dada', setsSummary: '4 Set (15kg x 12, 15kg x 12, 15kg x 10, 15kg x 10)', bestSet: '15 kg x 12' },
-    ],
-  },
-  {
-    id: 'w-2',
-    name: 'Treadmill Incline Fat Burn & HIIT',
-    date: '2026-09-07',
-    displayDate: '07 Sep 2026',
-    durationMinutes: 45,
-    activeMinutes: 45,
-    restMinutes: 0,
-    volumeKg: 0,
-    totalSets: 2,
-    hasPr: true,
-    prDetails: 'Treadmill Incline (12% @ 4.8 km/h for 30m)',
-    cardioMinutes: 45,
-    cardioDistanceKm: 4.4,
-    caloriesBurned: 375,
-    exercises: [
-      { name: 'Treadmill Incline Fat Burn (12-3-30 Walk)', equipment: 'Treadmill', muscle: 'Kardio', setsSummary: '1 Sesi (30m, Incline 12%, Speed 4.8km/h, 2.4km)', bestSet: '2.4 km (~215 kkal)' },
-      { name: 'Treadmill Running / Jogging', equipment: 'Treadmill', muscle: 'Kardio', setsSummary: '1 Sesi (15m, Incline 2%, Speed 8.0km/h, 2.0km)', bestSet: '2.0 km (~160 kkal)' },
-    ],
-  },
-  {
-    id: 'w-3',
-    name: 'Back & Biceps Heavy Day',
-    date: '2026-09-06',
-    displayDate: '06 Sep 2026',
-    durationMinutes: 55,
-    activeMinutes: 31,
-    restMinutes: 24,
-    volumeKg: 2150,
-    totalSets: 13,
-    hasPr: false,
-    cardioMinutes: 0,
-    cardioDistanceKm: 0,
-    caloriesBurned: 290,
-    exercises: [
-      { name: 'Wide-Grip Lat Pulldown', equipment: 'Cable', muscle: 'Punggung', setsSummary: '4 Set (50kg x 10, 55kg x 8, 60kg x 6, 50kg x 10)', bestSet: '60 kg x 6' },
-      { name: 'Seated Cable Row', equipment: 'Cable', muscle: 'Punggung', setsSummary: '3 Set (50kg x 10, 55kg x 8, 55kg x 8)', bestSet: '55 kg x 8' },
-      { name: 'Standing Dumbbell Bicep Curl', equipment: 'Dumbbell', muscle: 'Biceps', setsSummary: '3 Set (12.5kg x 12, 15kg x 10, 15kg x 8)', bestSet: '15 kg x 10' },
-      { name: 'Cable Rope Hammer Curl', equipment: 'Cable', muscle: 'Biceps', setsSummary: '3 Set (25kg x 12, 30kg x 10, 30kg x 10)', bestSet: '30 kg x 10' },
-    ],
-  },
-  {
-    id: 'w-4',
-    name: 'Legs & Lower Body Strength',
-    date: '2026-09-04',
-    displayDate: '04 Sep 2026',
-    durationMinutes: 70,
-    activeMinutes: 38,
-    restMinutes: 32,
-    volumeKg: 3200,
-    totalSets: 14,
-    hasPr: true,
-    prDetails: 'Barbell Back Squat (110kg × 5 reps)',
-    cardioMinutes: 15,
-    cardioDistanceKm: 1.5,
-    caloriesBurned: 420,
-    exercises: [
-      { name: 'Barbell Back Squat', equipment: 'Barbell', muscle: 'Kaki', setsSummary: '4 Set (80kg x 10, 95kg x 8, 105kg x 6, 110kg x 5)', bestSet: '110 kg x 5 (PR)' },
-      { name: 'Incline 45° Leg Press Machine', equipment: 'Mesin', muscle: 'Kaki', setsSummary: '3 Set (140kg x 12, 160kg x 10, 180kg x 8)', bestSet: '180 kg x 8' },
-      { name: 'Lying Leg Curl Machine', equipment: 'Mesin', muscle: 'Kaki', setsSummary: '3 Set (40kg x 12, 45kg x 10, 45kg x 10)', bestSet: '45 kg x 10' },
-      { name: 'Hanging Leg Raise', equipment: 'Bodyweight', muscle: 'Perut', setsSummary: '4 Set (15 reps, 12 reps, 10 reps, 10 reps)', bestSet: 'BW x 15' },
-    ],
-  },
-  {
-    id: 'w-5',
-    name: 'Upper Body Hypertrophy & Arms',
-    date: '2026-09-03',
-    displayDate: '03 Sep 2026',
-    durationMinutes: 58,
-    activeMinutes: 30,
-    restMinutes: 28,
-    volumeKg: 1540,
-    totalSets: 12,
-    hasPr: false,
-    cardioMinutes: 0,
-    cardioDistanceKm: 0,
-    caloriesBurned: 275,
-    exercises: [
-      { name: 'Incline Dumbbell Press', equipment: 'Dumbbell', muscle: 'Dada', setsSummary: '3 Set (24kg x 10, 26kg x 8, 26kg x 8)', bestSet: '26 kg x 8' },
-      { name: 'Wide-Grip Lat Pulldown', equipment: 'Cable', muscle: 'Punggung', setsSummary: '3 Set (50kg x 10, 55kg x 8, 55kg x 8)', bestSet: '55 kg x 8' },
-      { name: 'Standing Overhead DB Extension', equipment: 'Dumbbell', muscle: 'Triceps', setsSummary: '3 Set (20kg x 10, 22kg x 8, 22kg x 8)', bestSet: '22 kg x 8' },
-      { name: 'Standing Dumbbell Bicep Curl', equipment: 'Dumbbell', muscle: 'Biceps', setsSummary: '3 Set (12.5kg x 10, 15kg x 8, 15kg x 8)', bestSet: '15 kg x 8' },
-    ],
-  },
-  {
-    id: 'w-6',
-    name: 'Lower Body & Core Focus',
-    date: '2026-08-28',
-    displayDate: '28 Agu 2026',
-    durationMinutes: 62,
-    activeMinutes: 34,
-    restMinutes: 28,
-    volumeKg: 2850,
-    totalSets: 12,
-    hasPr: false,
-    cardioMinutes: 0,
-    cardioDistanceKm: 0,
-    caloriesBurned: 350,
-    exercises: [
-      { name: 'Barbell Back Squat', equipment: 'Barbell', muscle: 'Kaki', setsSummary: '4 Set (80kg x 10, 90kg x 8, 100kg x 6, 100kg x 6)', bestSet: '100 kg x 6' },
-      { name: 'Incline 45° Leg Press Machine', equipment: 'Mesin', muscle: 'Kaki', setsSummary: '4 Set (140kg x 12, 160kg x 10, 160kg x 10, 160kg x 8)', bestSet: '160 kg x 10' },
-      { name: 'Lying Leg Curl Machine', equipment: 'Mesin', muscle: 'Kaki', setsSummary: '4 Set (40kg x 10, 40kg x 10, 40kg x 10, 40kg x 8)', bestSet: '40 kg x 10' },
-    ],
-  },
-  {
-    id: 'w-7',
-    name: 'Push & Cardio Blast Session',
-    date: '2026-08-25',
-    displayDate: '25 Agu 2026',
-    durationMinutes: 65,
-    activeMinutes: 35,
-    restMinutes: 30,
-    volumeKg: 1950,
-    totalSets: 13,
-    hasPr: true,
-    prDetails: 'Deadlift (130kg × 5 reps)',
-    cardioMinutes: 20,
-    cardioDistanceKm: 2.5,
-    caloriesBurned: 410,
-    exercises: [
-      { name: 'Conventional Deadlift', equipment: 'Barbell', muscle: 'Punggung', setsSummary: '4 Set (90kg x 8, 110kg x 6, 120kg x 5, 130kg x 5)', bestSet: '130 kg x 5 (PR)' },
-      { name: 'Barbell Bench Press', equipment: 'Barbell', muscle: 'Dada', setsSummary: '4 Set (60kg x 10, 70kg x 8, 70kg x 8, 70kg x 6)', bestSet: '70 kg x 8' },
-      { name: 'Treadmill Incline Fat Burn (12-3-30 Walk)', equipment: 'Treadmill', muscle: 'Kardio', setsSummary: '1 Sesi (20m, Incline 10%, Speed 5.0km/h, 1.7km)', bestSet: '1.7 km (~170 kkal)' },
-    ],
-  },
-];
-
-export interface TrendChartPoint {
-  label: string;
-  volume: number;
-  activeMin?: number;
-  restMin?: number;
-  cardioMin?: number;
-  density?: number;
-  sessions?: number;
-  durationHours?: number;
-  avgDensity?: number;
-}
-
-// Telemetry Trend Data for Charts
-const weeklyTrendChartData: TrendChartPoint[] = [
-  { label: 'Rab (03)', volume: 1540, activeMin: 30, restMin: 28, cardioMin: 0, density: 52 },
-  { label: 'Kam (04)', volume: 3200, activeMin: 38, restMin: 32, cardioMin: 15, density: 54 },
-  { label: 'Jum (05)', volume: 0, activeMin: 0, restMin: 0, cardioMin: 0, density: 0 },
-  { label: 'Sab (06)', volume: 2150, activeMin: 31, restMin: 24, cardioMin: 0, density: 56 },
-  { label: 'Min (07)', volume: 0, activeMin: 45, restMin: 0, cardioMin: 45, density: 100 },
-  { label: 'Sen (08)', volume: 1680, activeMin: 32, restMin: 28, cardioMin: 0, density: 53 },
-  { label: 'Sel (09)', volume: 1780, activeMin: 36, restMin: 29, cardioMin: 15, density: 55 },
-];
-
-const monthlyTrendChartData: TrendChartPoint[] = [
-  { label: 'Mgg 1 (1-7 Agu)', volume: 9400, sessions: 4, durationHours: 4.2 },
-  { label: 'Mgg 2 (8-14 Agu)', volume: 11200, sessions: 5, durationHours: 5.1 },
-  { label: 'Mgg 3 (15-21 Agu)', volume: 10800, sessions: 4, durationHours: 4.8 },
-  { label: 'Mgg 4 (22-28 Agu)', volume: 12450, sessions: 5, durationHours: 5.5 },
-  { label: 'Mgg 5 (29-31 Agu)', volume: 5600, sessions: 2, durationHours: 2.1 },
-];
-
-const yearlyTrendChartData: TrendChartPoint[] = [
-  { label: 'Jan', volume: 38500, sessions: 16, avgDensity: 52 },
-  { label: 'Feb', volume: 41200, sessions: 17, avgDensity: 53 },
-  { label: 'Mar', volume: 44800, sessions: 18, avgDensity: 55 },
-  { label: 'Apr', volume: 42000, sessions: 16, avgDensity: 54 },
-  { label: 'Mei', volume: 46500, sessions: 19, avgDensity: 56 },
-  { label: 'Jun', volume: 48900, sessions: 19, avgDensity: 55 },
-  { label: 'Jul', volume: 51200, sessions: 20, avgDensity: 57 },
-  { label: 'Agu', volume: 49450, sessions: 19, avgDensity: 54 },
-  { label: 'Sep', volume: 13280, sessions: 5, avgDensity: 55 },
-  { label: 'Okt', volume: 0, sessions: 0, avgDensity: 0 },
-  { label: 'Nov', volume: 0, sessions: 0, avgDensity: 0 },
-  { label: 'Des', volume: 0, sessions: 0, avgDensity: 0 },
-];
-
 export default function WorkoutsPage() {
+  // Main Tab State: 'SESSIONS' (Riwayat & Analitik) or 'EXERCISE_LIBRARY' (Katalog Alat)
   const [activeTab, setActiveTab] = useState<'SESSIONS' | 'EXERCISE_LIBRARY'>('SESSIONS');
+
+  // Timeframe Filter: TODAY | WEEK | MONTH | YEAR
   const [timeframe, setTimeframe] = useState<WorkoutTimeframe>('WEEK');
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [selectedMonthPart, setSelectedMonthPart] = useState('09');
+  const [selectedYear, setSelectedYear] = useState<string>('2026');
+  const [selectedMonthPart, setSelectedMonthPart] = useState<string>('09');
+
+  // Chart Metric Mode: 'VOLUME' | 'DENSITY' | 'DURATION'
   const [chartMetric, setChartMetric] = useState<'VOLUME' | 'DENSITY' | 'DURATION'>('VOLUME');
 
-  // Exercise Library search & filter
-  const [searchLibrary, setSearchLibrary] = useState('');
-  const debouncedLibrarySearch = useDebounce(searchLibrary, 350);
-  const [muscleFilter, setMuscleFilter] = useState<'ALL' | MuscleGroupCategory>('ALL');
+  // Pagination for Workout Sessions
+  const [sessionPage, setSessionPage] = useState<number>(1);
+  const [sessionPageSize, setSessionPageSize] = useState<number>(5);
 
-  // Pagination states
-  const [sessionPage, setSessionPage] = useState(1);
-  const [sessionPageSize, setSessionPageSize] = useState(4);
-  const [libraryPage, setLibraryPage] = useState(1);
-  const [libraryPageSize, setLibraryPageSize] = useState(12);
-  const [libraryItems, setLibraryItems] = useState<ExerciseMaster[]>([]);
-  const [libraryTotalItems, setLibraryTotalItems] = useState(0);
-  const [libraryTotalPages, setLibraryTotalPages] = useState(1);
-  const [isLibraryLoading, setIsLibraryLoading] = useState(false);
+  // Pagination & Filters for Exercise Catalog Tab
+  const [libraryPage, setLibraryPage] = useState<number>(1);
+  const [libraryPageSize, setLibraryPageSize] = useState<number>(9);
+  const [searchLibrary, setSearchLibrary] = useState<string>('');
+  const debouncedLibrarySearch = useDebounce(searchLibrary, 300);
+  const [muscleFilter, setMuscleFilter] = useState<string>('ALL');
 
-  // Fetch library items from API
-  useEffect(() => {
-    let isCancelled = false;
-    const loadLibrary = async () => {
-      setIsLibraryLoading(true);
+  // Compute start and end date query strings based on timeframe
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    if (timeframe === 'TODAY') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      return {
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      };
+    }
+    if (timeframe === 'WEEK') {
+      const start = new Date();
+      start.setDate(now.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      return {
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      };
+    }
+    if (timeframe === 'MONTH') {
+      const year = parseInt(selectedYear, 10);
+      const monthIndex = parseInt(selectedMonthPart, 10) - 1;
+      const start = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+      const end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+      return {
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      };
+    }
+    if (timeframe === 'YEAR') {
+      const year = parseInt(selectedYear, 10);
+      const start = new Date(year, 0, 1, 0, 0, 0, 0);
+      const end = new Date(year, 11, 31, 23, 59, 59, 999);
+      return {
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      };
+    }
+    return {};
+  }, [timeframe, selectedYear, selectedMonthPart]);
+
+  // Query 1: Real Workout Analytics
+  const {
+    data: backendAnalytics,
+    isLoading: isAnalyticsLoading,
+  } = useQuery({
+    queryKey: ['workout-analytics', timeframe, selectedYear, selectedMonthPart],
+    queryFn: () =>
+      workoutService.getAnalytics(
+        timeframe as any,
+        timeframe === 'MONTH' || timeframe === 'YEAR' ? selectedYear : undefined,
+        timeframe === 'MONTH' ? selectedMonthPart : undefined,
+      ),
+    staleTime: 1000 * 30, // 30s
+  });
+
+  // Query 2: Real Workout History Sessions
+  const {
+    data: historyData,
+    isLoading: isHistoryLoading,
+  } = useQuery({
+    queryKey: ['workout-history', sessionPage, sessionPageSize, dateRange.startDate, dateRange.endDate],
+    queryFn: () =>
+      workoutService.getHistory({
+        page: sessionPage,
+        limit: sessionPageSize,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      }),
+    staleTime: 1000 * 30,
+  });
+
+  // Query 3: Exercise Master Catalog
+  const {
+    data: exerciseLibraryData,
+    isLoading: isLibraryLoading,
+  } = useQuery({
+    queryKey: ['exercise-library', libraryPage, libraryPageSize, debouncedLibrarySearch, muscleFilter],
+    queryFn: async () => {
       try {
         const res = await exerciseService.getExercises({
           page: libraryPage,
           limit: libraryPageSize,
-          search: debouncedLibrarySearch,
-          muscleGroup: muscleFilter !== 'ALL' ? muscleFilter : undefined,
+          search: debouncedLibrarySearch || undefined,
+          muscleGroup: muscleFilter !== 'ALL' ? (muscleFilter as MuscleGroupCategory) : undefined,
         });
-
-        if (!isCancelled && res) {
-          setLibraryItems(res.items);
-          setLibraryTotalItems(res.pagination.totalItems);
-          setLibraryTotalPages(res.pagination.totalPages);
-        }
+        return res;
       } catch {
-        // Fallback to static library if offline
+        // Fallback filter over client library
         const filtered = MASTER_EXERCISES_LIBRARY.filter((ex) => {
           const matchSearch =
             debouncedLibrarySearch === '' ||
@@ -368,118 +204,69 @@ export default function WorkoutsPage() {
           const matchMuscle = muscleFilter === 'ALL' || ex.primaryMuscle === muscleFilter;
           return matchSearch && matchMuscle;
         });
-        if (!isCancelled) {
-          const start = (libraryPage - 1) * libraryPageSize;
-          setLibraryItems(filtered.slice(start, start + libraryPageSize));
-          setLibraryTotalItems(filtered.length);
-          setLibraryTotalPages(Math.max(1, Math.ceil(filtered.length / libraryPageSize)));
-        }
-      } finally {
-        if (!isCancelled) setIsLibraryLoading(false);
+        const start = (libraryPage - 1) * libraryPageSize;
+        return {
+          items: filtered.slice(start, start + libraryPageSize),
+          pagination: {
+            page: libraryPage,
+            limit: libraryPageSize,
+            totalItems: filtered.length,
+            totalPages: Math.max(1, Math.ceil(filtered.length / libraryPageSize)),
+          },
+        };
       }
-    };
+    },
+    enabled: activeTab === 'EXERCISE_LIBRARY',
+    staleTime: 1000 * 60 * 5,
+  });
 
-    loadLibrary();
-    return () => {
-      isCancelled = true;
-    };
-  }, [libraryPage, libraryPageSize, debouncedLibrarySearch, muscleFilter]);
-
-  // Reset libraryPage when search or muscle filter changes
-  useEffect(() => {
-    setLibraryPage(1);
-  }, [debouncedLibrarySearch, muscleFilter]);
-
-  // Backend Analytics state
-  const [backendAnalytics, setBackendAnalytics] = useState<WorkoutTelemetryAggregates | null>(null);
-  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
-
-  useEffect(() => {
-    let isCancelled = false;
-    const fetchAnalytics = async () => {
-      setIsAnalyticsLoading(true);
-      try {
-        const data = await workoutService.getAnalytics(timeframe as any);
-        if (!isCancelled && data) {
-          setBackendAnalytics(data);
-        }
-      } catch {
-        // Keep local fallback
-      } finally {
-        if (!isCancelled) setIsAnalyticsLoading(false);
-      }
-    };
-    fetchAnalytics();
-    return () => {
-      isCancelled = true;
-    };
-  }, [timeframe]);
-
-  // Filtered workout history based on active timeframe
-  const filteredWorkouts = useMemo(() => {
-    return allWorkoutHistory.filter((w) => {
-      if (timeframe === 'TODAY') {
-        return w.date === '2026-09-09';
-      }
-      if (timeframe === 'WEEK') {
-        // Last 7 days
-        return w.date >= '2026-09-03' && w.date <= '2026-09-09';
-      }
-      if (timeframe === 'MONTH') {
-        const targetPrefix = `${selectedYear}-${selectedMonthPart}`;
-        return w.date.startsWith(targetPrefix);
-      }
-      if (timeframe === 'YEAR') {
-        return w.date.startsWith(selectedYear);
-      }
-      return true;
-    });
-  }, [timeframe, selectedYear, selectedMonthPart]);
-
-  // Reset sessionPage when timeframe/filter changes
+  // Reset pagination when filter changes
   useEffect(() => {
     setSessionPage(1);
   }, [timeframe, selectedYear, selectedMonthPart]);
 
-  // Paginated workouts
-  const totalSessionPages = Math.ceil(filteredWorkouts.length / sessionPageSize) || 1;
-  const paginatedWorkouts = useMemo(() => {
-    const start = (sessionPage - 1) * sessionPageSize;
-    return filteredWorkouts.slice(start, start + sessionPageSize);
-  }, [filteredWorkouts, sessionPage, sessionPageSize]);
+  useEffect(() => {
+    setLibraryPage(1);
+  }, [debouncedLibrarySearch, muscleFilter]);
 
-  // Aggregated KPIs for selected timeframe (prefer backend analytics when available)
-  const aggregatedStats = useMemo(() => {
-    const localVolume = filteredWorkouts.reduce((acc, w) => acc + w.volumeKg, 0);
-    const localDuration = filteredWorkouts.reduce((acc, w) => acc + w.durationMinutes, 0);
-    const localActive = filteredWorkouts.reduce((acc, w) => acc + w.activeMinutes, 0);
-    const localRest = filteredWorkouts.reduce((acc, w) => acc + w.restMinutes, 0);
-    const localCardio = filteredWorkouts.reduce((acc, w) => acc + (w.cardioMinutes || 0), 0);
-    const localDistance = filteredWorkouts.reduce((acc, w) => acc + (w.cardioDistanceKm || 0), 0);
-    const localCalories = filteredWorkouts.reduce((acc, w) => acc + (w.caloriesBurned || 0), 0);
-    const localPrCount = filteredWorkouts.filter((w) => w.hasPr).length;
-    const localSets = filteredWorkouts.reduce((acc, w) => acc + w.totalSets, 0);
+  const workoutsList = historyData?.items || [];
+  const pagination = historyData?.pagination || { page: 1, limit: 5, totalItems: 0, totalPages: 1 };
 
-    const localActiveDensity =
-      localActive + localRest > 0
-        ? Math.round((localActive / (localActive + localRest)) * 100)
-        : 60;
+  // Chart data from real backend analytics
+  const chartData = useMemo(() => {
+    if (backendAnalytics?.chartData && backendAnalytics.chartData.length > 0) {
+      return backendAnalytics.chartData.map((d) => ({
+        label: d.label || d.date,
+        volume: d.volumeKg || 0,
+        activeMin: d.activeMinutes || 0,
+        restMin: d.restMinutes || 0,
+        totalMin: d.totalMinutes || (d.activeMinutes || 0) + (d.restMinutes || 0),
+        density:
+          (d.activeMinutes || 0) + (d.restMinutes || 0) > 0
+            ? Math.round(((d.activeMinutes || 0) / ((d.activeMinutes || 0) + (d.restMinutes || 0))) * 100)
+            : 0,
+      }));
+    }
 
-    return {
-      totalVolume: backendAnalytics?.totalVolumeKg ?? localVolume,
-      totalDuration: backendAnalytics?.totalDurationMinutes ?? localDuration,
-      totalActive: localActive,
-      totalRest: localRest,
-      totalCardio: backendAnalytics?.totalCardioMinutes ?? localCardio,
-      totalDistance: backendAnalytics?.totalDistanceKm ?? +localDistance.toFixed(1),
-      totalCalories: backendAnalytics?.totalCaloriesBurned ?? localCalories,
-      prCount: backendAnalytics?.newPrCount ?? localPrCount,
-      totalSets: backendAnalytics?.totalSets ?? localSets,
-      activeDensity: backendAnalytics?.activeRatioPct ?? localActiveDensity,
-      sessionCount: backendAnalytics?.totalSessions ?? filteredWorkouts.length,
-      volumeDelta: backendAnalytics?.volumeDeltaPct ?? 8.4,
-    };
-  }, [filteredWorkouts, backendAnalytics]);
+    // Default placeholder chart timeline if no workouts yet
+    if (timeframe === 'TODAY') {
+      return [{ label: 'Hari Ini', volume: 0, activeMin: 0, restMin: 0, density: 0, totalMin: 0 }];
+    }
+    if (timeframe === 'WEEK') {
+      const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+      return days.map((day) => ({ label: day, volume: 0, activeMin: 0, restMin: 0, density: 0, totalMin: 0 }));
+    }
+    if (timeframe === 'MONTH') {
+      return [
+        { label: 'Mgg 1', volume: 0, activeMin: 0, restMin: 0, density: 0, totalMin: 0 },
+        { label: 'Mgg 2', volume: 0, activeMin: 0, restMin: 0, density: 0, totalMin: 0 },
+        { label: 'Mgg 3', volume: 0, activeMin: 0, restMin: 0, density: 0, totalMin: 0 },
+        { label: 'Mgg 4', volume: 0, activeMin: 0, restMin: 0, density: 0, totalMin: 0 },
+      ];
+    }
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return months.map((m) => ({ label: m, volume: 0, activeMin: 0, restMin: 0, density: 0, totalMin: 0 }));
+  }, [backendAnalytics, timeframe]);
 
   return (
     <AppShell>
@@ -511,25 +298,27 @@ export default function WorkoutsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('SESSIONS')}
-          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'SESSIONS'
+          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            activeTab === 'SESSIONS'
               ? 'bg-[var(--accent-primary)] text-white shadow-sm'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
+          }`}
         >
           <Activity className="w-3.5 h-3.5" />
-          Riwayat & Analitik ({allWorkoutHistory.length})
+          Riwayat & Analitik ({backendAnalytics?.totalSessions || pagination.totalItems || 0})
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('EXERCISE_LIBRARY')}
-          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'EXERCISE_LIBRARY'
+          className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-[4px] text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            activeTab === 'EXERCISE_LIBRARY'
               ? 'bg-[var(--accent-primary)] text-white shadow-sm'
               : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
+          }`}
         >
           <Dumbbell className="w-3.5 h-3.5" />
-          Katalog Alat ({MASTER_EXERCISES_LIBRARY.length})
+          Katalog Alat ({exerciseLibraryData?.pagination.totalItems || MASTER_EXERCISES_LIBRARY.length})
         </button>
       </div>
 
@@ -548,194 +337,187 @@ export default function WorkoutsPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:flex rounded-[6px] bg-[var(--bg-base)] p-1 gap-1 border border-[var(--border-default)] w-full sm:w-auto">
-                {[
-                  { key: 'TODAY', label: 'Hari ini' },
+              {(
+                [
+                  { key: 'TODAY', label: 'Hari Ini' },
                   { key: 'WEEK', label: '7 Hari terakhir' },
                   { key: 'MONTH', label: 'Sebulan' },
                   { key: 'YEAR', label: `1 Tahun (${selectedYear})` },
-                ].map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setTimeframe(tab.key as WorkoutTimeframe)}
-                    className={`px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all cursor-pointer text-center ${timeframe === tab.key
-                        ? 'bg-[var(--accent-primary)] text-white font-bold'
-                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+                ] as const
+              ).map((tf) => (
+                <button
+                  key={tf.key}
+                  type="button"
+                  onClick={() => setTimeframe(tf.key)}
+                  className={`px-3 py-1 rounded-[4px] text-xs font-bold transition-all cursor-pointer ${
+                    timeframe === tf.key
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'bg-[var(--bg-card)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
             </div>
 
-            {/* 5-YEAR FILTER when 'YEAR' is selected */}
-            {timeframe === 'YEAR' && (
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <span className="text-xs text-[var(--text-secondary)] font-medium">Pilih tahun:</span>
-                <div className="relative">
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    aria-label="Pilih Tahun Riwayat Workout"
-                    className="pl-3 pr-8 py-1.5 rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-base)] text-xs text-[var(--text-primary)] font-semibold focus:outline-none cursor-pointer appearance-none"
-                  >
-                    {AVAILABLE_YEARS.map((yr) => (
-                      <option key={yr} value={yr}>
-                        Tahun {yr} {yr === '2026' ? '(Terkini)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-[var(--accent-primary)] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+            {/* Sub-Filters for Month / Year */}
+            {timeframe === 'MONTH' && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedMonthPart}
+                  onChange={(e) => setSelectedMonthPart(e.target.value)}
+                  aria-label="Pilih Bulan Analitik"
+                  className="h-8 px-3 rounded-[6px] border border-[var(--border-default)] bg-[#1A1C23] text-xs text-white font-medium focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] cursor-pointer shadow-sm"
+                >
+                  {MONTH_NAMES.map((m) => (
+                    <option key={m.num} value={m.num} className="bg-[#18191E] text-white py-1">
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  aria-label="Pilih Tahun Analitik"
+                  className="h-8 px-3 rounded-[6px] border border-[var(--border-default)] bg-[#1A1C23] text-xs text-white font-medium focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] cursor-pointer shadow-sm"
+                >
+                  {AVAILABLE_YEARS.map((y) => (
+                    <option key={y} value={y} className="bg-[#18191E] text-white py-1">
+                      {y}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
-            {/* 12-MONTH & 5-YEAR PICKER when 'MONTH' is selected */}
-            {timeframe === 'MONTH' && (
-              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
-                {/* Year Picker */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-[var(--text-secondary)] font-medium">Tahun:</span>
-                  <div className="relative">
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(e.target.value)}
-                      aria-label="Pilih Tahun"
-                      className="pl-2.5 pr-7 py-1.5 rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-base)] text-xs text-[var(--text-primary)] font-semibold focus:outline-none cursor-pointer appearance-none"
-                    >
-                      {AVAILABLE_YEARS.map((yr) => (
-                        <option key={yr} value={yr}>
-                          {yr}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3 h-3 text-[var(--text-secondary)] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Month Picker */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-[var(--text-secondary)] font-medium">Bulan:</span>
-                  <div className="relative">
-                    <select
-                      value={selectedMonthPart}
-                      onChange={(e) => setSelectedMonthPart(e.target.value)}
-                      aria-label="Pilih Bulan"
-                      className="pl-2.5 pr-7 py-1.5 rounded-[4px] border border-[var(--border-default)] bg-[var(--bg-base)] text-xs text-[var(--text-primary)] font-semibold focus:outline-none cursor-pointer appearance-none"
-                    >
-                      {MONTH_NAMES.map((m) => (
-                        <option key={m.num} value={m.num}>
-                          {m.name} {selectedYear === '2026' && m.num === '09' ? '(Bulan Ini)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3 h-3 text-[var(--accent-primary)] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
+            {timeframe === 'YEAR' && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  aria-label="Pilih Tahun Analitik"
+                  className="h-8 px-3 rounded-[6px] border border-[var(--border-default)] bg-[#1A1C23] text-xs text-white font-medium focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] cursor-pointer shadow-sm"
+                >
+                  {AVAILABLE_YEARS.map((y) => (
+                    <option key={y} value={y} className="bg-[#18191E] text-white py-1">
+                      Tahun {y}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
 
-          {/* 6 Hero Analytics KPI Cards for Selected Timeframe */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Telemetry Metric Cards Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            {/* Total Volume */}
             <MetricCard
               label="Total volume"
-              value={formatNumber(aggregatedStats.totalVolume)}
+              value={formatNumber(backendAnalytics?.totalVolumeKg || 0)}
               unit="kg"
-              trend={{
-                direction: 'UP',
-                value: '8.4%',
-                percentage: '+8.4',
-                alignment: 'ON_TRACK',
-              }}
-              icon={<Activity className="w-4 h-4 text-[var(--color-moss-600)]" />}
+              trend={
+                backendAnalytics?.volumeDeltaPct && backendAnalytics.volumeDeltaPct > 0
+                  ? { value: `+${backendAnalytics.volumeDeltaPct}%`, direction: 'UP' }
+                  : undefined
+              }
+              icon={<TrendingUp className="w-4 h-4" />}
             />
 
+            {/* Sesi Latihan */}
             <MetricCard
               label="Sesi latihan"
-              value={aggregatedStats.sessionCount}
+              value={backendAnalytics?.totalSessions || 0}
               unit="Sesi"
-              subValue={`${aggregatedStats.totalSets} total set`}
-              icon={<Dumbbell className="w-4 h-4 text-[var(--accent-primary)]" />}
+              subValue={`${backendAnalytics?.totalSets || 0} total set`}
+              icon={<Activity className="w-4 h-4" />}
             />
 
+            {/* Durasi Latihan */}
             <MetricCard
               label="Durasi latihan"
-              value={aggregatedStats.totalDuration}
+              value={backendAnalytics?.totalDurationMinutes || 0}
               unit="menit"
-              subValue={`~${(aggregatedStats.totalDuration / 60).toFixed(1)} jam`}
-              icon={<Clock className="w-4 h-4 text-sky-400" />}
+              subValue={
+                backendAnalytics?.totalDurationMinutes
+                  ? `~${(backendAnalytics.totalDurationMinutes / 60).toFixed(1)} jam`
+                  : '0 jam'
+              }
+              icon={<Clock className="w-4 h-4" />}
             />
 
+            {/* Rasio Aktif */}
             <MetricCard
               label="Rasio aktif"
-              value={`${aggregatedStats.activeDensity}%`}
+              value={backendAnalytics?.activeRatioPct ? `${backendAnalytics.activeRatioPct}%` : '0%'}
               unit="Aktif"
               subValue="Work / Rest density"
-              icon={<Sparkles className="w-4 h-4 text-amber-400" />}
+              icon={<Zap className="w-4 h-4" />}
             />
 
+            {/* Kardio & Jarak */}
             <MetricCard
               label="Kardio & jarak"
-              value={aggregatedStats.totalCardio}
+              value={backendAnalytics?.totalCardioMinutes || 0}
               unit="min"
-              subValue={`${aggregatedStats.totalDistance} km · ~${aggregatedStats.totalCalories} kkal`}
-              icon={<Zap className="w-4 h-4 text-emerald-400" />}
+              subValue={`${backendAnalytics?.totalDistanceKm || 0} km • ~${backendAnalytics?.totalCaloriesBurned || 0} kkal`}
+              icon={<Flame className="w-4 h-4" />}
             />
 
+            {/* Rekor PR Baru */}
             <MetricCard
               label="Rekor PR baru"
-              value={aggregatedStats.prCount}
+              value={backendAnalytics?.newPrCount || 0}
               unit="PR"
-              subValue="Tercatat periode ini"
-              icon={<Award className="w-4 h-4 text-[var(--accent-secondary)]" />}
+              subValue={backendAnalytics?.newPrCount ? 'Tercatat periode ini' : 'Belum ada PR baru'}
+              icon={<Award className="w-4 h-4" />}
             />
           </div>
 
-          {/* Telemetry Visual Analytics Chart Card */}
-          <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-default)]/60 pb-3">
+          {/* Interactive Recharts Chart Panel */}
+          <div className="p-4 sm:p-5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
               <div>
-                <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold font-[var(--font-display)] text-[var(--text-primary)] flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-[var(--accent-primary)]" />
-                  Grafik telemetri kinerja ({timeframe === 'TODAY' ? 'Hari ini' : timeframe === 'WEEK' ? '7 Hari terakhir' : timeframe === 'MONTH' ? `Bulan ${MONTH_NAMES.find(m => m.num === selectedMonthPart)?.name} ${selectedYear}` : `Tahun ${selectedYear}`})
+                  Grafik telemetri kinerja ({timeframe === 'TODAY' ? 'Hari Ini' : timeframe === 'WEEK' ? '7 Hari Terakhir' : timeframe === 'MONTH' ? `Bulan ${MONTH_NAMES.find(m => m.num === selectedMonthPart)?.name || ''}` : `Tahun ${selectedYear}`})
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
                   Analisis beban volume, rasio waktu latihan aktif vs istirahat, dan durasi kardio.
                 </p>
               </div>
 
-              {/* Chart Metric Selector */}
-              <div className="flex items-center gap-1 p-1 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] self-start sm:self-auto">
+              {/* Chart Metric Toggle Buttons */}
+              <div className="flex items-center gap-1.5 self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setChartMetric('VOLUME')}
-                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${chartMetric === 'VOLUME'
-                      ? 'bg-[var(--accent-primary)] text-white font-bold'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
+                  className={`px-2.5 py-1 rounded-[4px] text-[11px] font-bold transition-all cursor-pointer ${
+                    chartMetric === 'VOLUME'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)]'
+                  }`}
                 >
                   Volume (kg)
                 </button>
                 <button
                   type="button"
                   onClick={() => setChartMetric('DENSITY')}
-                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${chartMetric === 'DENSITY'
-                      ? 'bg-[var(--accent-primary)] text-white font-bold'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
+                  className={`px-2.5 py-1 rounded-[4px] text-[11px] font-bold transition-all cursor-pointer ${
+                    chartMetric === 'DENSITY'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)]'
+                  }`}
                 >
                   Active vs Rest
                 </button>
                 <button
                   type="button"
                   onClick={() => setChartMetric('DURATION')}
-                  className={`px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ${chartMetric === 'DURATION'
-                      ? 'bg-[var(--accent-primary)] text-white font-bold'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
+                  className={`px-2.5 py-1 rounded-[4px] text-[11px] font-bold transition-all cursor-pointer ${
+                    chartMetric === 'DURATION'
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-default)]'
+                  }`}
                 >
                   Total Durasi
                 </button>
@@ -743,56 +525,44 @@ export default function WorkoutsPage() {
             </div>
 
             {/* Chart Area */}
-            <div className="h-64 w-full pt-1">
+            <div className="h-64 sm:h-72 w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
                 {chartMetric === 'VOLUME' ? (
-                  <AreaChart
-                    data={
-                      timeframe === 'YEAR'
-                        ? yearlyTrendChartData
-                        : timeframe === 'MONTH'
-                          ? monthlyTrendChartData
-                          : weeklyTrendChartData
-                    }
-                    margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
-                  >
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="workoutVolumeGlow" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#FF6B2C" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#FF6B2C" stopOpacity="0.0" />
+                      <linearGradient id="volumeGlow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--accent-primary, #FF6B2C)" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="var(--accent-primary, #FF6B2C)" stopOpacity="0.0" />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
                     <XAxis dataKey="label" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip
-                      cursor={{ stroke: '#FF6B2C', strokeDasharray: '3 3', strokeWidth: 1.5 }}
+                      cursor={{ stroke: 'var(--accent-primary, #FF6B2C)', strokeDasharray: '3 3', strokeWidth: 1.5 }}
                       contentStyle={{
                         backgroundColor: '#1E2027',
                         borderColor: '#2C303B',
-                        borderRadius: '14px',
+                        borderRadius: '10px',
                         color: '#FFFFFF',
                         fontSize: '12px',
                         boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
                       labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
-                      formatter={(v: unknown) => [`${formatNumber(v as number)} kg`, 'Volume Beban']}
+                      formatter={(v: any) => [`${formatNumber(Number(v) || 0)} kg`, 'Volume Beban']}
                     />
                     <Area
                       type="monotone"
                       dataKey="volume"
                       stroke="#FF6B2C"
                       strokeWidth={3}
-                      fill="url(#workoutVolumeGlow)"
+                      fill="url(#volumeGlow)"
                       dot={{ r: 4, fill: '#FF6B2C', stroke: '#121316', strokeWidth: 2 }}
                       activeDot={{ r: 6, fill: '#FF6B2C', stroke: '#FFFFFF', strokeWidth: 2 }}
                     />
                   </AreaChart>
                 ) : chartMetric === 'DENSITY' ? (
-                  <BarChart
-                    data={weeklyTrendChartData}
-                    margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
-                  >
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
                     <XAxis dataKey="label" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
@@ -801,13 +571,13 @@ export default function WorkoutsPage() {
                       contentStyle={{
                         backgroundColor: '#1E2027',
                         borderColor: '#2C303B',
-                        borderRadius: '14px',
+                        borderRadius: '10px',
                         color: '#FFFFFF',
                         fontSize: '12px',
                         boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
                       labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
-                      formatter={(v: unknown, name: unknown) => [
+                      formatter={(v: any, name: any) => [
                         `${v} menit`,
                         name === 'activeMin' ? 'Waktu Angkat Aktif' : 'Waktu Istirahat (Rest)',
                       ]}
@@ -816,18 +586,9 @@ export default function WorkoutsPage() {
                     <Bar dataKey="restMin" stackId="a" fill="#FF6B2C" radius={[6, 6, 0, 0]} name="Waktu Istirahat (min)" />
                   </BarChart>
                 ) : (
-                  <AreaChart
-                    data={
-                      timeframe === 'YEAR'
-                        ? yearlyTrendChartData
-                        : timeframe === 'MONTH'
-                          ? monthlyTrendChartData
-                          : weeklyTrendChartData
-                    }
-                    margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
-                  >
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="workoutDurationGlow" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="durationGlow" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#4CD6DE" stopOpacity="0.3" />
                         <stop offset="100%" stopColor="#4CD6DE" stopOpacity="0.0" />
                       </linearGradient>
@@ -840,22 +601,22 @@ export default function WorkoutsPage() {
                       contentStyle={{
                         backgroundColor: '#1E2027',
                         borderColor: '#2C303B',
-                        borderRadius: '14px',
+                        borderRadius: '10px',
                         color: '#FFFFFF',
                         fontSize: '12px',
                         boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                       }}
                       labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
+                      formatter={(v: any) => [`${v} menit`, 'Total Durasi']}
                     />
                     <Area
                       type="monotone"
-                      dataKey={timeframe === 'YEAR' ? 'sessions' : 'activeMin'}
+                      dataKey="totalMin"
                       stroke="#4CD6DE"
                       strokeWidth={3}
-                      fill="url(#workoutDurationGlow)"
+                      fill="url(#durationGlow)"
                       dot={{ r: 4, fill: '#4CD6DE', stroke: '#121316', strokeWidth: 2 }}
                       activeDot={{ r: 6, fill: '#4CD6DE', stroke: '#FFFFFF', strokeWidth: 2 }}
-                      name={timeframe === 'YEAR' ? 'Jumlah Sesi' : 'Durasi Latihan (min)'}
                     />
                   </AreaChart>
                 )}
@@ -865,12 +626,12 @@ export default function WorkoutsPage() {
 
           <Divider />
 
-          {/* Section: Sesi Latihan pada Periode Ini */}
+          {/* Section: Daftar Sesi Latihan Riil */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)]">
-                  Daftar sesi latihan terfilter ({filteredWorkouts.length} sesi)
+                  Daftar sesi latihan terfilter ({pagination.totalItems} sesi)
                 </h2>
                 <p className="text-xs text-[var(--text-secondary)]">
                   Sesi workout yang diselesaikan dalam periode ini.
@@ -878,127 +639,201 @@ export default function WorkoutsPage() {
               </div>
             </div>
 
-            {filteredWorkouts.length === 0 ? (
-              <div className="p-8 text-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3">
-                <Dumbbell className="w-8 h-8 text-[var(--text-tertiary)] mx-auto" />
-                <h4 className="text-sm font-bold text-[var(--text-primary)]">Tidak ada sesi di periode ini</h4>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Belum ada catatan latihan yang tercatat pada rentang waktu yang dipilih.
+            {isHistoryLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={idx} className="p-5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-2">
+                        <Skeleton className="h-5 w-48" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
+                      <Skeleton className="h-8 w-24" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <Skeleton className="h-14" />
+                      <Skeleton className="h-14" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : workoutsList.length === 0 ? (
+              <div className="p-10 text-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3">
+                <Dumbbell className="w-10 h-10 text-[var(--text-tertiary)] mx-auto opacity-60" />
+                <h4 className="text-base font-bold text-[var(--text-primary)]">Belum ada sesi latihan di periode ini</h4>
+                <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
+                  Belum ada catatan latihan yang tersimpan pada rentang tanggal yang dipilih. Mulai sesi latihan baru untuk mencatat performa Anda.
                 </p>
-                <Link href="/workouts/active">
-                  <Button variant="primary" size="sm">
-                    + Mulai latihan sekarang
-                  </Button>
-                </Link>
+                <div className="pt-2">
+                  <Link href="/workouts/active">
+                    <Button variant="primary" size="sm">
+                      <Play className="w-3.5 h-3.5 mr-1.5" /> Mulai Sesi Workout Sekarang
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ) : (
               <>
                 <div className="space-y-4">
-                  {paginatedWorkouts.map((workout) => (
-                    <div
-                      key={workout.id}
-                      className="p-4 sm:p-5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--accent-primary)]/50 transition-colors space-y-4"
-                    >
-                      {/* Session Header Card */}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[var(--border-default)]/60 pb-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
-                              {workout.displayDate}
-                            </span>
-                            {workout.hasPr && <PRBadge label="PR Baru" />}
-                          </div>
+                  {workoutsList.map((workout: WorkoutSession) => {
+                    // Compute total volume & duration
+                    const sessionVol = workout.exercises.reduce((sum, ex) => {
+                      return (
+                        sum +
+                        ex.sets.reduce((sSum, s) => {
+                          return s.isCompleted ? sSum + (Number(s.weightKg) || 0) * (s.reps || 0) : sSum;
+                        }, 0)
+                      );
+                    }, 0);
 
-                          <h3 className="text-base sm:text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)]">
-                            {workout.name}
-                          </h3>
+                    const durationMinutes =
+                      workout.completedAt && workout.startedAt
+                        ? Math.max(1, Math.round((new Date(workout.completedAt).getTime() - new Date(workout.startedAt).getTime()) / 60000))
+                        : workout.totalDurationSeconds
+                        ? Math.max(1, Math.round(workout.totalDurationSeconds / 60))
+                        : 0;
 
-                          {workout.prDetails && (
-                            <span className="text-xs text-[var(--accent-secondary)] font-semibold flex items-center gap-1">
-                              <Award className="w-3.5 h-3.5" /> {workout.prDetails}
-                            </span>
-                          )}
-                        </div>
+                    const dateObj = new Date(workout.completedAt || workout.startedAt || '');
+                    const dateStr = !isNaN(dateObj.getTime())
+                      ? dateObj.toLocaleDateString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : '-';
 
-                        <div className="flex items-center gap-4 sm:gap-6 justify-between md:justify-end">
-                          <div className="text-left md:text-right">
-                            <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
-                              Volume
-                            </span>
-                            <span className="text-sm sm:text-base font-bold font-[var(--font-display)] tabular-nums text-[var(--text-primary)]">
-                              {formatNumber(workout.volumeKg)} kg
-                            </span>
-                          </div>
-
-                          <div className="text-left md:text-right">
-                            <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
-                              Durasi
-                            </span>
-                            <span className="text-sm sm:text-base font-bold font-[var(--font-display)] tabular-nums text-[var(--color-moss-600)]">
-                              {workout.durationMinutes} min
-                            </span>
-                          </div>
-
-                          <Link href="/workouts/active">
-                            <Button variant="secondary" size="sm" className="text-xs">
-                              <span>Detail</span>
-                              <ChevronRight className="w-3.5 h-3.5 ml-1" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-
-                      {/* Exercise Breakdown per Alat */}
-                      <div className="space-y-2">
-                        <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
-                          Rincian alat & gerakan ({workout.exercises.length} gerakan):
-                        </span>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {workout.exercises.map((ex, idx) => (
-                            <div
-                              key={idx}
-                              className="p-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] flex items-center justify-between gap-3 text-xs"
-                            >
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-[var(--text-primary)]">{ex.name}</span>
-                                  <span className="px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[9px] font-semibold text-sky-400 border border-[var(--border-default)]">
-                                    {ex.equipment}
-                                  </span>
-                                </div>
-                                <p className="text-[11px] text-[var(--text-tertiary)]">{ex.setsSummary}</p>
-                              </div>
-
-                              <div className="text-right shrink-0">
-                                <span className="text-[9px] font-bold text-[var(--text-tertiary)] block">
-                                  Best Set
+                    return (
+                      <div
+                        key={workout.id}
+                        className="p-4 sm:p-5 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] hover:border-[var(--accent-primary)]/50 transition-colors space-y-4"
+                      >
+                        {/* Session Header Card */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[var(--border-default)]/60 pb-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {dateStr}
+                              </span>
+                              {workout.routineTemplateName && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[var(--bg-card)] border border-[var(--border-default)] text-[var(--text-secondary)]">
+                                  {workout.routineTemplateName}
                                 </span>
-                                <span className="font-bold font-mono text-[var(--accent-secondary)]">
-                                  {ex.bestSet}
-                                </span>
-                              </div>
+                              )}
                             </div>
-                          ))}
+
+                            <h3 className="text-base sm:text-lg font-bold font-[var(--font-display)] text-[var(--text-primary)]">
+                              {workout.name}
+                            </h3>
+                          </div>
+
+                          <div className="flex items-center gap-4 sm:gap-6 justify-between md:justify-end">
+                            <div className="text-left md:text-right">
+                              <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
+                                Volume
+                              </span>
+                              <span className="text-sm sm:text-base font-bold font-[var(--font-display)] tabular-nums text-[var(--text-primary)]">
+                                {formatNumber(sessionVol)} kg
+                              </span>
+                            </div>
+
+                            <div className="text-left md:text-right">
+                              <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
+                                Durasi
+                              </span>
+                              <span className="text-sm sm:text-base font-bold font-[var(--font-display)] tabular-nums text-emerald-400">
+                                {durationMinutes} min
+                              </span>
+                            </div>
+
+                            <Link href={`/workouts/${workout.id}`}>
+                              <Button variant="secondary" size="sm" className="text-xs">
+                                <span>Detail</span>
+                                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+
+                        {/* Exercise Breakdown Pills */}
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-bold text-[var(--text-secondary)] block">
+                            Rincian alat & gerakan ({workout.exercises.length} gerakan):
+                          </span>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {workout.exercises.map((ex, idx) => {
+                              const completedSets = ex.sets.filter((s) => s.isCompleted);
+                              const isCardio =
+                                ex.equipment === 'TREADMILL' ||
+                                ex.equipment === 'STATIONARY_BIKE' ||
+                                ex.primaryMuscle === 'CARDIO' ||
+                                (ex.exerciseName && ex.exerciseName.toLowerCase().includes('treadmill'));
+
+                              // Find best set
+                              let bestSetText = '-';
+                              if (isCardio) {
+                                const totalDist = ex.sets.reduce((sum, s) => sum + (Number(s.distanceKm) || 0), 0);
+                                bestSetText = totalDist > 0 ? `${totalDist.toFixed(1)} km` : `${completedSets.length} sesi`;
+                              } else if (completedSets.length > 0) {
+                                const best = completedSets.reduce((max, s) =>
+                                  (Number(s.weightKg) || 0) > (Number(max.weightKg) || 0) ? s : max,
+                                  completedSets[0]
+                                );
+                                bestSetText = `${best.weightKg || 0} kg x ${best.reps || 0}`;
+                              }
+
+                              const setsSummaryText = isCardio
+                                ? `${completedSets.length} Sesi Kardio`
+                                : `${completedSets.length} Set (${completedSets.map(s => `${s.weightKg}kg x ${s.reps}`).join(', ') || 'Belum selesai'})`;
+
+                              return (
+                                <div
+                                  key={ex.id || idx}
+                                  className="p-3 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-base)] flex items-center justify-between gap-3 text-xs"
+                                >
+                                  <div className="space-y-0.5 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-[var(--text-primary)] truncate">
+                                        {ex.exerciseName || ex.name}
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[9px] font-semibold text-sky-400 border border-[var(--border-default)] shrink-0">
+                                        {ex.equipmentName || ex.equipment}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-[var(--text-tertiary)] truncate">{setsSummaryText}</p>
+                                  </div>
+
+                                  <div className="text-right shrink-0">
+                                    <span className="text-[9px] font-bold text-[var(--text-tertiary)] block">
+                                      Best Set
+                                    </span>
+                                    <span className="font-bold font-mono text-[var(--accent-secondary)]">
+                                      {bestSetText}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
-                {/* Workout Sessions Pagination */}
+                {/* Pagination */}
                 <Pagination
                   currentPage={sessionPage}
-                  totalPages={totalSessionPages}
-                  totalItems={filteredWorkouts.length}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.totalItems}
                   pageSize={sessionPageSize}
                   onPageChange={setSessionPage}
                   onPageSizeChange={(newSize) => {
                     setSessionPageSize(newSize);
                     setSessionPage(1);
                   }}
-                  pageSizeOptions={[1, 5, 10, 15, 20]}
+                  pageSizeOptions={[5, 10, 15, 20]}
                   itemLabel="sesi latihan"
                 />
               </>
@@ -1012,7 +847,7 @@ export default function WorkoutsPage() {
       {/* ============================================================ */}
       {activeTab === 'EXERCISE_LIBRARY' && (
         <div className="space-y-6">
-          {/* Top Bar: Search, Muscle Filters & Link to /exercises */}
+          {/* Top Bar: Search & Link to /exercises */}
           <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1031,12 +866,17 @@ export default function WorkoutsPage() {
             </div>
 
             <Link href="/exercises" className="shrink-0">
-              <Button variant="secondary" size="md" className="w-full sm:w-auto h-11 text-xs font-bold border-[var(--accent-primary)]/40 text-[var(--accent-primary)]">
+              <Button
+                variant="secondary"
+                size="md"
+                className="w-full sm:w-auto h-11 text-xs font-bold border-[var(--accent-primary)]/40 text-[var(--accent-primary)]"
+              >
                 <Plus className="w-4 h-4 mr-1.5" /> Buka Katalog & Buat Kustom
               </Button>
             </Link>
           </div>
 
+          {/* Muscle Group Filter Chips */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {(
               [
@@ -1055,10 +895,11 @@ export default function WorkoutsPage() {
                 key={cat}
                 type="button"
                 onClick={() => setMuscleFilter(cat)}
-                className={`px-3 py-2 rounded-[6px] text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${muscleFilter === cat
+                className={`px-3 py-2 rounded-[6px] text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
+                  muscleFilter === cat
                     ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white font-bold'
                     : 'bg-[var(--bg-surface)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
+                }`}
               >
                 {cat === 'ALL' ? 'Semua Otot' : cat}
               </button>
@@ -1088,7 +929,7 @@ export default function WorkoutsPage() {
                 </div>
               ))}
             </div>
-          ) : libraryItems.length === 0 ? (
+          ) : !exerciseLibraryData?.items || exerciseLibraryData.items.length === 0 ? (
             <div className="p-12 text-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3">
               <Dumbbell className="w-8 h-8 text-[var(--text-tertiary)] mx-auto" />
               <h4 className="text-sm font-bold text-[var(--text-primary)]">Tidak ada gerakan yang cocok</h4>
@@ -1098,7 +939,7 @@ export default function WorkoutsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {libraryItems.map((ex) => (
+              {exerciseLibraryData.items.map((ex: ExerciseMaster) => (
                 <div
                   key={ex.id}
                   className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-3 hover:border-[var(--accent-primary)]/40 transition-colors flex flex-col justify-between"
@@ -1114,7 +955,7 @@ export default function WorkoutsPage() {
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded bg-[var(--bg-base)] border border-[var(--border-default)] text-[10px] font-bold text-[var(--accent-secondary)] shrink-0">
-                          {ex.primaryMuscleName}
+                          {ex.primaryMuscleName || ex.primaryMuscle}
                         </span>
                       )}
                     </div>
@@ -1126,7 +967,7 @@ export default function WorkoutsPage() {
 
                   <div className="flex items-center justify-between pt-2 border-t border-[var(--border-default)]/60 text-xs">
                     <span className="text-[11px] font-semibold text-sky-400">
-                      {ex.equipmentName}
+                      {ex.equipmentName || ex.equipment}
                     </span>
                     <span className="text-[10px] text-[var(--text-tertiary)] font-mono">
                       {ex.primaryMuscle}
@@ -1138,19 +979,21 @@ export default function WorkoutsPage() {
           )}
 
           {/* Exercise Library Pagination */}
-          <Pagination
-            currentPage={libraryPage}
-            totalPages={libraryTotalPages}
-            totalItems={libraryTotalItems}
-            pageSize={libraryPageSize}
-            onPageChange={setLibraryPage}
-            onPageSizeChange={(newSize) => {
-              setLibraryPageSize(newSize);
-              setLibraryPage(1);
-            }}
-            pageSizeOptions={[6, 9, 12, 18, 24]}
-            itemLabel="gerakan & alat"
-          />
+          {exerciseLibraryData && (
+            <Pagination
+              currentPage={libraryPage}
+              totalPages={exerciseLibraryData.pagination.totalPages}
+              totalItems={exerciseLibraryData.pagination.totalItems}
+              pageSize={libraryPageSize}
+              onPageChange={setLibraryPage}
+              onPageSizeChange={(newSize) => {
+                setLibraryPageSize(newSize);
+                setLibraryPage(1);
+              }}
+              pageSizeOptions={[6, 9, 12, 18, 24]}
+              itemLabel="gerakan & alat"
+            />
+          )}
         </div>
       )}
     </AppShell>

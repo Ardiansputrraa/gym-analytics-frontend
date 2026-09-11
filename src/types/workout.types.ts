@@ -97,6 +97,8 @@ export interface WorkoutSession {
   restSeconds?: number;
   totalVolumeKg?: number;
   estimatedCaloriesBurned?: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   exercises: WorkoutExerciseItem[];
 }
 
@@ -152,6 +154,27 @@ export interface PersonalRecordItem {
   recordType: 'MAX_WEIGHT' | 'MAX_REPS' | 'MAX_VOLUME';
   value: number;
   achievedAt: string;
+}
+
+export interface WorkoutDetailSummary {
+  totalVolumeKg: number;
+  totalCompletedSets: number;
+  sessionDurationMinutes: number;
+  activeDurationMinutes: number;
+  restDurationMinutes: number;
+  activeRatioPct: number;
+  densityPct: number;
+  estimatedCaloriesBurned: number;
+  resistanceCalories: number;
+  cardioCalories: number;
+  cardioMinutes: number;
+  cardioDistanceKm: number;
+}
+
+export interface WorkoutDetailResult {
+  workout: WorkoutSession;
+  personalRecords: PersonalRecordItem[];
+  summary: WorkoutDetailSummary;
 }
 
 

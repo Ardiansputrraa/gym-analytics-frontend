@@ -6,6 +6,7 @@ import {
   RoutineTemplate,
   WorkoutTelemetryAggregates,
   PersonalRecordItem,
+  WorkoutDetailResult,
 } from '@/types/workout.types';
 
 export interface StartWorkoutParams {
@@ -96,9 +97,17 @@ export const workoutService = {
    * Get workout telemetry aggregates & Recharts performance chart data
    */
   getAnalytics: async (
-    timeframe: 'TODAY' | '7_DAYS' | 'MONTH' | 'YEAR' = '7_DAYS',
+    timeframe: 'TODAY' | 'WEEK' | 'MONTH' | 'YEAR' = 'WEEK',
+    year?: string | number,
+    month?: string | number,
   ): Promise<WorkoutTelemetryAggregates> => {
-    const res = await apiClient.get<any>(`/workouts/analytics?timeframe=${timeframe}`);
+    const searchParams = new URLSearchParams();
+    searchParams.set('timeframe', timeframe);
+    if (year) searchParams.set('year', year.toString());
+    if (month) searchParams.set('month', month.toString());
+
+    const qs = searchParams.toString();
+    const res = await apiClient.get<any>(`/workouts/analytics${qs ? `?${qs}` : ''}`);
     const data = res?.data?.data !== undefined ? res.data.data : res?.data !== undefined ? res.data : res;
     return data;
   },
@@ -157,4 +166,13 @@ export const workoutService = {
     const res = await apiClient.patch<any>(`/workouts/${workoutId}/cancel`, {});
     return res?.data?.data || res?.data || res;
   },
+
+  /**
+   * Get full workout session detail by ID
+   */
+  getWorkoutById: async (workoutId: string): Promise<WorkoutDetailResult> => {
+    const res = await apiClient.get<any>(`/workouts/${workoutId}`);
+    return res?.data?.data || res?.data || res;
+  },
 };
+

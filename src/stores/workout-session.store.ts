@@ -365,16 +365,21 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>()(
         if (!currentSet) return;
 
         const willBeCompleted = !currentSet.isCompleted;
+        const restDuration = configuredRestTarget || currentSet.restSeconds || 45;
+        const tut = currentSet.durationSeconds && currentSet.durationSeconds > 0
+          ? currentSet.durationSeconds
+          : Math.max(15, Math.round((Number(currentSet.reps) || 10) * 3.5));
 
         // Optimistic update
         await get().updateSet(exerciseId, setId, {
           isCompleted: willBeCompleted,
           completedAt: willBeCompleted ? new Date().toISOString() : null,
+          durationSeconds: willBeCompleted ? tut : currentSet.durationSeconds,
+          restSeconds: willBeCompleted ? restDuration : currentSet.restSeconds,
         });
 
         // Trigger rest timer if set was just completed
         if (willBeCompleted) {
-          const restDuration = configuredRestTarget || currentSet.restSeconds || 30;
           get().startRestTimer(restDuration);
         }
       },

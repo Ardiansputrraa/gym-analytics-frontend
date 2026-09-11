@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Trash2,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -150,6 +151,52 @@ export function ExerciseSelectorModal({
       fetchExercises();
     }
   }, [isOpen, fetchExercises]);
+
+  // Smart Filter Selection: Automatically resolves conflicts between muscle groups and cardio equipment
+  const handleSelectMuscle = (key: 'ALL' | MuscleGroupCategory) => {
+    if (selectedMuscle === key && key !== 'ALL') {
+      setSelectedMuscle('ALL');
+      return;
+    }
+    setSelectedMuscle(key);
+
+    if (key === 'CARDIO') {
+      const cardioEquipments: (EquipmentCategory | 'ALL')[] = ['ALL', 'TREADMILL', 'STAIR_MASTER', 'STATIONARY_BIKE'];
+      if (!cardioEquipments.includes(selectedEquipment)) {
+        setSelectedEquipment('ALL');
+      }
+    } else if (key !== 'ALL') {
+      const cardioOnlyEquipments: EquipmentCategory[] = ['TREADMILL', 'STAIR_MASTER', 'STATIONARY_BIKE'];
+      if (cardioOnlyEquipments.includes(selectedEquipment as EquipmentCategory)) {
+        setSelectedEquipment('ALL');
+      }
+    }
+  };
+
+  const handleSelectEquipment = (key: 'ALL' | EquipmentCategory) => {
+    if (selectedEquipment === key && key !== 'ALL') {
+      setSelectedEquipment('ALL');
+      return;
+    }
+    setSelectedEquipment(key);
+
+    const cardioEquipments: EquipmentCategory[] = ['TREADMILL', 'STAIR_MASTER', 'STATIONARY_BIKE'];
+    if (cardioEquipments.includes(key as EquipmentCategory)) {
+      if (selectedMuscle !== 'ALL' && selectedMuscle !== 'CARDIO') {
+        setSelectedMuscle('ALL');
+      }
+    } else if (key !== 'ALL') {
+      if (selectedMuscle === 'CARDIO') {
+        setSelectedMuscle('ALL');
+      }
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedMuscle('ALL');
+    setSelectedEquipment('ALL');
+    setSearchQuery('');
+  };
 
   if (!isOpen) return null;
 
@@ -381,15 +428,27 @@ export function ExerciseSelectorModal({
 
           {/* Muscle Group Filter Chips */}
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase">
-              <Filter className="w-3 h-3 text-[var(--accent-secondary)]" />
-              Kelompok Otot:
+            <div className="flex items-center justify-between text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+              <span className="flex items-center gap-1.5">
+                <Filter className="w-3 h-3 text-[var(--accent-secondary)]" />
+                Kelompok Otot:
+              </span>
+              {selectedMuscle !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedMuscle('ALL')}
+                  className="text-[10px] text-[var(--accent-primary)] hover:underline cursor-pointer lowercase"
+                >
+                  reset otot
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {MUSCLE_FILTER_OPTIONS.map((opt) => (
                 <button
                   key={opt.key}
-                  onClick={() => setSelectedMuscle(opt.key)}
+                  type="button"
+                  onClick={() => handleSelectMuscle(opt.key)}
                   className={`px-2.5 py-1 text-xs rounded-[6px] border transition-all cursor-pointer ${selectedMuscle === opt.key
                       ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] font-bold'
                       : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -403,15 +462,27 @@ export function ExerciseSelectorModal({
 
           {/* Equipment Filter Chips */}
           <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-secondary)] uppercase">
-              <Dumbbell className="w-3 h-3 text-sky-400" />
-              Jenis Alat:
+            <div className="flex items-center justify-between text-[11px] font-bold text-[var(--text-secondary)] uppercase">
+              <span className="flex items-center gap-1.5">
+                <Dumbbell className="w-3 h-3 text-sky-400" />
+                Jenis Alat:
+              </span>
+              {selectedEquipment !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedEquipment('ALL')}
+                  className="text-[10px] text-sky-400 hover:underline cursor-pointer lowercase"
+                >
+                  reset alat
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {EQUIPMENT_FILTER_OPTIONS.map((eq) => (
                 <button
                   key={eq.key}
-                  onClick={() => setSelectedEquipment(eq.key)}
+                  type="button"
+                  onClick={() => handleSelectEquipment(eq.key)}
                   className={`px-2.5 py-1 text-xs rounded-[6px] border transition-all cursor-pointer ${selectedEquipment === eq.key
                       ? 'border-sky-500 bg-sky-500/15 text-sky-400 font-bold'
                       : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -450,19 +521,32 @@ export function ExerciseSelectorModal({
           ) : exercises.length === 0 ? (
             <div className="p-8 text-center space-y-3">
               <p className="text-xs text-[var(--text-secondary)]">
-                Tidak ada gerakan yang cocok dengan pencarian atau filter Anda.
+                Tidak ada gerakan yang cocok dengan pencarian atau kombinasi filter Anda.
               </p>
-              {!isCreatingCustom && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setIsCreatingCustom(true)}
-                  className="font-semibold"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Buat Gerakan Kustom Sekarang
-                </Button>
-              )}
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                {(selectedMuscle !== 'ALL' || selectedEquipment !== 'ALL' || searchQuery.trim() !== '') && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleResetFilters}
+                    className="font-semibold text-xs border-[var(--border-default)]"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                    Reset Semua Filter
+                  </Button>
+                )}
+                {!isCreatingCustom && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setIsCreatingCustom(true)}
+                    className="font-semibold"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Buat Gerakan Kustom Sekarang
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             exercises.map((ex) => {
