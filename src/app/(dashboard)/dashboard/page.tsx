@@ -10,8 +10,15 @@ import { InsightCard } from '@/components/ui/InsightCard';
 import { TimelineEntry } from '@/components/ui/TimelineEntry';
 import { Button } from '@/components/ui/Button';
 import { PRBadge } from '@/components/ui/PRBadge';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useWorkoutSessionStore } from '@/stores/workout-session.store';
 import { formatNumber, formatDuration } from '@/lib/utils';
+import {
+  useDashboardSummary,
+  useDashboardInsights,
+  useDashboardTimeline,
+} from '@/hooks/use-dashboard-analytics';
+import { AnalyticsTimeframe } from '@/types/analytics.types';
 import {
   Dumbbell,
   ArrowRight,
@@ -32,6 +39,7 @@ import {
   HeartPulse,
   Utensils,
   PieChart,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -50,93 +58,35 @@ import {
   Cell,
 } from 'recharts';
 
-// ==========================================
-// MOCK ANALYTICS DATA
-// ==========================================
-const weeklyCalorieData = [
-  { day: 'Rab (03)', calories: 2560, target: 2588, water: 3600, weight: 104.8 },
-  { day: 'Kam (04)', calories: 2480, target: 2588, water: 3500, weight: 104.6 },
-  { day: 'Jum (05)', calories: 2510, target: 2588, water: 3700, weight: 104.5 },
-  { day: 'Sab (06)', calories: 2750, target: 2588, water: 3200, weight: 104.4 },
-  { day: 'Min (07)', calories: 2610, target: 2588, water: 3400, weight: 104.3 },
-  { day: 'Sen (08)', calories: 2540, target: 2588, water: 3600, weight: 104.2 },
-  { day: 'Sel (09)', calories: 1780, target: 2588, water: 2400, weight: 104.1 },
-];
-
-const muscleVolumeData = [
-  { muscle: 'Dada (Chest)', volume: 4200, sets: 16, percentage: 32, fill: '#F05A28' },
-  { muscle: 'Punggung (Back)', volume: 3850, sets: 14, percentage: 29, fill: '#E6C659' },
-  { muscle: 'Kaki (Legs)', volume: 3100, sets: 12, percentage: 23, fill: '#4A6B4A' },
-  { muscle: 'Bahu (Shoulders)', volume: 1450, sets: 8, percentage: 11, fill: '#38BDF8' },
-  { muscle: 'Lengan (Arms)', volume: 680, sets: 6, percentage: 5, fill: '#A855F7' },
-];
-
-const strengthProgressionData = [
-  { week: 'Mgg 1', benchPress: 75, inclineDb: 26, squat: 95, deadlift: 110 },
-  { week: 'Mgg 2', benchPress: 77.5, inclineDb: 26, squat: 100, deadlift: 115 },
-  { week: 'Mgg 3', benchPress: 80, inclineDb: 28, squat: 105, deadlift: 115 },
-  { week: 'Mgg 4', benchPress: 82.5, inclineDb: 30, squat: 110, deadlift: 120 },
-];
-
-const workRestRatioData = [
-  { session: '03 Sep (Push)', activeMin: 34, restMin: 28, efficiency: 55 },
-  { session: '05 Sep (Pull)', activeMin: 38, restMin: 24, efficiency: 61 },
-  { session: '07 Sep (Legs)', activeMin: 42, restMin: 32, efficiency: 57 },
-  { session: '08 Sep (Upper)', activeMin: 30, restMin: 30, efficiency: 50 },
-];
-
-// Consistency Heatmap (Past 28 Days)
-const activityHeatmap = [
-  { day: 1, hasWorkout: true, volume: 1420, date: '12 Agu' },
-  { day: 2, hasWorkout: true, volume: 1650, date: '13 Agu' },
-  { day: 3, hasWorkout: false, volume: 0, date: '14 Agu' },
-  { day: 4, hasWorkout: true, volume: 1800, date: '15 Agu' },
-  { day: 5, hasWorkout: false, volume: 0, date: '16 Agu' },
-  { day: 6, hasWorkout: true, volume: 1550, date: '17 Agu' },
-  { day: 7, hasWorkout: false, volume: 0, date: '18 Agu' },
-  { day: 8, hasWorkout: true, volume: 1620, date: '19 Agu' },
-  { day: 9, hasWorkout: true, volume: 1710, date: '20 Agu' },
-  { day: 10, hasWorkout: false, volume: 0, date: '21 Agu' },
-  { day: 11, hasWorkout: true, volume: 1900, date: '22 Agu' },
-  { day: 12, hasWorkout: false, volume: 0, date: '23 Agu' },
-  { day: 13, hasWorkout: true, volume: 1450, date: '24 Agu' },
-  { day: 14, hasWorkout: false, volume: 0, date: '25 Agu' },
-  { day: 15, hasWorkout: true, volume: 1580, date: '26 Agu' },
-  { day: 16, hasWorkout: true, volume: 1620, date: '27 Agu' },
-  { day: 17, hasWorkout: false, volume: 0, date: '28 Agu' },
-  { day: 18, hasWorkout: true, volume: 1750, date: '29 Agu' },
-  { day: 19, hasWorkout: false, volume: 0, date: '30 Agu' },
-  { day: 20, hasWorkout: true, volume: 1600, date: '31 Agu' },
-  { day: 21, hasWorkout: false, volume: 0, date: '01 Sep' },
-  { day: 22, hasWorkout: true, volume: 1540, date: '02 Sep' },
-  { day: 23, hasWorkout: true, volume: 1540, date: '03 Sep' },
-  { day: 24, hasWorkout: false, volume: 0, date: '04 Sep' },
-  { day: 25, hasWorkout: true, volume: 1820, date: '05 Sep' },
-  { day: 26, hasWorkout: false, volume: 0, date: '06 Sep' },
-  { day: 27, hasWorkout: true, volume: 1450, date: '07 Sep' },
-  { day: 28, hasWorkout: true, volume: 1680, date: '08 Sep' },
-];
-
-const muscleRecoveryStates = [
-  { name: 'Dada (Chest)', status: 'RECOVERED', pct: 95, hoursAgo: 48, label: 'Siap Dilatih' },
-  { name: 'Punggung (Back)', status: 'RECOVERED', pct: 100, hoursAgo: 72, label: 'Siap Dilatih' },
-  { name: 'Kaki (Legs)', status: 'RECOVERING', pct: 60, hoursAgo: 24, label: 'Pemulihan Aktif' },
-  { name: 'Bahu (Shoulders)', status: 'RECOVERED', pct: 90, hoursAgo: 48, label: 'Siap Dilatih' },
-  { name: 'Lengan & Core', status: 'RECOVERED', pct: 92, hoursAgo: 48, label: 'Siap Dilatih' },
-];
-
-const recentPRs = [
-  { exercise: 'Barbell Bench Press', metric: '82.5 kg × 6 reps', e1rm: '95.7 kg', date: '08 Sep 2026' },
-  { exercise: 'Incline Dumbbell Press', metric: '30.0 kg × 8 reps', e1rm: '37.2 kg', date: '08 Sep 2026' },
-  { exercise: 'Barbell Squat', metric: '110.0 kg × 5 reps', e1rm: '128.3 kg', date: '05 Sep 2026' },
-  { exercise: 'Treadmill Incline Fat Burn', metric: '30 min @ 12% / 4.8 km/h', e1rm: '315 kkal', date: '07 Sep 2026' },
-];
+const MUSCLE_PALETTE: Record<string, string> = {
+  CHEST: '#F05A28',
+  BACK: '#E6C659',
+  LEGS: '#4A6B4A',
+  SHOULDERS: '#38BDF8',
+  ARMS: '#A855F7',
+  BICEPS: '#A855F7',
+  TRICEPS: '#C084FC',
+  CORE: '#EC4899',
+  CARDIO: '#06B6D4',
+  OTHER: '#94A3B8',
+};
 
 export default function DashboardPage() {
   const { activeSession, isTimerRunning, getElapsedSeconds } = useWorkoutSessionStore();
   const [analyticsTab, setAnalyticsTab] = useState<'VOLUME' | 'STRENGTH' | 'CALORIE_WEIGHT' | 'WORK_REST'>('VOLUME');
-  const [timeframe, setTimeframe] = useState<'7D' | '30D' | '90D'>('7D');
+  const [timeframe, setTimeframe] = useState<AnalyticsTimeframe>('7D');
   const [elapsed, setElapsed] = useState(0);
+
+  // TanStack Query Hooks
+  const {
+    data: summary,
+    isLoading: isSummaryLoading,
+    refetch: refetchSummary,
+    isRefetching,
+  } = useDashboardSummary(timeframe);
+
+  const { data: insightsList } = useDashboardInsights();
+  const { data: timelineEvents, isLoading: isTimelineLoading } = useDashboardTimeline();
 
   useEffect(() => {
     if (!activeSession) return;
@@ -147,13 +97,63 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [activeSession, getElapsedSeconds]);
 
+  // Derived Active Workout: prioritize store session, otherwise fallback to API active workout
+  const liveActiveWorkout =
+    activeSession && activeSession.exercises.length > 0
+      ? {
+          name: activeSession.name,
+          exercisesCount: activeSession.exercises.length,
+          setsCount: activeSession.exercises.reduce((a, b) => a + b.sets.length, 0),
+          elapsedSeconds: elapsed,
+        }
+      : summary?.activeWorkout
+      ? {
+          name: summary.activeWorkout.name,
+          exercisesCount: summary.activeWorkout.totalExercises,
+          setsCount: summary.activeWorkout.totalSets,
+          elapsedSeconds: summary.activeWorkout.elapsedSeconds,
+        }
+      : null;
+
+  // Radial Gauges Calculation (Circumference: 2 * pi * 38 = 238.76)
+  const GAUGE_CIRCUMFERENCE = 238.76;
+  const calPct = summary?.radialGauges?.calorieProgress?.targetKcal
+    ? Math.min(
+        100,
+        Math.round(
+          (summary.radialGauges.calorieProgress.consumedKcal /
+            summary.radialGauges.calorieProgress.targetKcal) *
+            100,
+        ),
+      )
+    : 0;
+  const calOffset = GAUGE_CIRCUMFERENCE - (GAUGE_CIRCUMFERENCE * Math.max(0, calPct)) / 100;
+
+  const hydroPct = summary?.radialGauges?.hydrationProgress?.pct || 0;
+  const hydroOffset = GAUGE_CIRCUMFERENCE - (GAUGE_CIRCUMFERENCE * Math.max(0, hydroPct)) / 100;
+
+  const insightsToRender =
+    insightsList && insightsList.length > 0
+      ? insightsList
+      : summary?.deterministicInsights && summary.deterministicInsights.length > 0
+      ? summary.deterministicInsights
+      : [];
+
+  const timelineToRender = timelineEvents && timelineEvents.length > 0 ? timelineEvents : [];
+
   return (
     <AppShell>
       {/* 30-Day Evaluation Reminder Banner */}
-      <CheckInBanner daysSinceLastCheckIn={32} />
+      {summary?.checkInBanner && (
+        <CheckInBanner
+          daysSinceLastCheckIn={
+            summary.checkInBanner.intervalDays - summary.checkInBanner.daysRemaining
+          }
+        />
+      )}
 
-      {/* Active Workout Floating Hero (if active session exists with exercises) */}
-      {activeSession && activeSession.exercises.length > 0 && (
+      {/* Active Workout Floating Hero */}
+      {liveActiveWorkout && (
         <div className="mb-5 p-4 rounded-[6px] border border-[var(--accent-primary)]/60 bg-[var(--accent-primary)]/10 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white font-bold animate-pulse">
@@ -165,11 +165,12 @@ export default function DashboardPage() {
                   Sesi latihan sedang berlangsung
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-base)] border border-[var(--accent-primary)]/40 font-mono text-[var(--accent-primary)]">
-                  {formatDuration(elapsed)}
+                  {formatDuration(liveActiveWorkout.elapsedSeconds)}
                 </span>
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {activeSession.name} ({activeSession.exercises.length} gerakan · {activeSession.exercises.reduce((a, b) => a + b.sets.length, 0)} set)
+                {liveActiveWorkout.name} ({liveActiveWorkout.exercisesCount} gerakan ·{' '}
+                {liveActiveWorkout.setsCount} set)
               </h3>
             </div>
           </div>
@@ -226,67 +227,89 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 6 Hero Analytics KPI Cards with Dedicated Protein, Fat, Carbs Tracking */}
+      {/* 6 Hero Analytics KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 my-4">
-        <MetricCard
-          label="Volume latihan (7D)"
-          value="13.280"
-          unit="kg"
-          trend={{
-            direction: 'UP',
-            value: '980 kg',
-            percentage: '+8.0',
-            alignment: 'ON_TRACK',
-          }}
-          icon={<Activity className="w-4 h-4 text-[#4CD6DE]" />}
-        />
-        <MetricCard
-          label="Protein harian"
-          value="142"
-          unit="/ 208g"
-          subValue="Sisa: 66g (68%)"
-          icon={<Utensils className="w-4 h-4 text-[#FF6B2C]" />}
-        />
-        <MetricCard
-          label="Lemak harian"
-          value="52"
-          unit="/ 72g"
-          subValue="Sisa: 20g (72%)"
-          icon={<PieChart className="w-4 h-4 text-[#FFA726]" />}
-        />
-        <MetricCard
-          label="Karbohidrat"
-          value="185"
-          unit="/ 276g"
-          subValue="Sisa: 91g (67%)"
-          icon={<Zap className="w-4 h-4 text-[#9B7CF6]" />}
-        />
-        <MetricCard
-          label="Berat badan"
-          value="104.1"
-          unit="kg"
-          trend={{
-            direction: 'DOWN',
-            value: '1.1 kg',
-            percentage: '-1.0',
-            alignment: 'NEUTRAL',
-          }}
-          icon={<Scale className="w-4 h-4 text-[var(--accent-secondary)]" />}
-        />
-        <MetricCard
-          label="Rasio aktif (work/rest)"
-          value="54%"
-          unit="Aktif"
-          subValue="46% Istirahat (Optimal)"
-          icon={<Clock className="w-4 h-4 text-emerald-400" />}
-        />
+        {isSummaryLoading ? (
+          Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="p-4 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] space-y-2"
+            >
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))
+        ) : (
+          <>
+            <MetricCard
+              label={`Volume latihan (${timeframe})`}
+              value={formatNumber(summary?.heroMetrics?.volume?.totalKg || 0)}
+              unit="kg"
+              trend={
+                summary?.heroMetrics?.volume
+                  ? {
+                      direction: summary.heroMetrics.volume.isPositive ? 'UP' : 'DOWN',
+                      value: `${Math.abs(summary.heroMetrics.volume.trendPct)}%`,
+                      percentage: `${summary.heroMetrics.volume.isPositive ? '+' : '-'}${Math.abs(summary.heroMetrics.volume.trendPct)}`,
+                      alignment: summary.heroMetrics.volume.isPositive ? 'ON_TRACK' : 'NEUTRAL',
+                    }
+                  : undefined
+              }
+              icon={<Activity className="w-4 h-4 text-[#4CD6DE]" />}
+            />
+            <MetricCard
+              label="Protein harian"
+              value={summary?.heroMetrics?.protein?.consumedG || 0}
+              unit={`/ ${summary?.heroMetrics?.protein?.targetG || 0}g`}
+              subValue={`Sisa: ${summary?.heroMetrics?.protein?.remainingG || 0}g (${summary?.heroMetrics?.protein?.pct || 0}%)`}
+              icon={<Utensils className="w-4 h-4 text-[#FF6B2C]" />}
+            />
+            <MetricCard
+              label="Lemak harian"
+              value={summary?.heroMetrics?.fat?.consumedG || 0}
+              unit={`/ ${summary?.heroMetrics?.fat?.targetG || 0}g`}
+              subValue={`Sisa: ${summary?.heroMetrics?.fat?.remainingG || 0}g (${summary?.heroMetrics?.fat?.pct || 0}%)`}
+              icon={<PieChart className="w-4 h-4 text-[#FFA726]" />}
+            />
+            <MetricCard
+              label="Karbohidrat"
+              value={summary?.heroMetrics?.carbs?.consumedG || 0}
+              unit={`/ ${summary?.heroMetrics?.carbs?.targetG || 0}g`}
+              subValue={`Sisa: ${summary?.heroMetrics?.carbs?.remainingG || 0}g (${summary?.heroMetrics?.carbs?.pct || 0}%)`}
+              icon={<Zap className="w-4 h-4 text-[#9B7CF6]" />}
+            />
+            <MetricCard
+              label="Berat badan"
+              value={summary?.heroMetrics?.weight?.currentKg || 0}
+              unit="kg"
+              trend={
+                summary?.heroMetrics?.weight
+                  ? {
+                      direction: summary.heroMetrics.weight.trendKg <= 0 ? 'DOWN' : 'UP',
+                      value: `${Math.abs(summary.heroMetrics.weight.trendKg)} kg`,
+                      percentage: `${summary.heroMetrics.weight.trendPct}%`,
+                      alignment: summary.heroMetrics.weight.isAlignedWithGoal ? 'ON_TRACK' : 'NEUTRAL',
+                    }
+                  : undefined
+              }
+              icon={<Scale className="w-4 h-4 text-[var(--accent-secondary)]" />}
+            />
+            <MetricCard
+              label="Rasio aktif (work/rest)"
+              value={`${summary?.heroMetrics?.activeRatio?.activePct || 50}%`}
+              unit="Aktif"
+              subValue={`${summary?.heroMetrics?.activeRatio?.restPct || 50}% Istirahat`}
+              icon={<Clock className="w-4 h-4 text-emerald-400" />}
+            />
+          </>
+        )}
       </div>
 
-      {/* Dual Circular Radial Gauges: Progres Kalori & Hidrasi Air Minum */}
+      {/* Dual Circular Radial Gauges */}
       <div className="my-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Card 1: Circular Radial Gauge - Progres Kalori Harian */}
         <div className="p-5 rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex flex-col sm:flex-row items-center justify-between gap-5">
-          {/* Left Info */}
           <div className="space-y-3 flex-1 text-center sm:text-left">
             <div>
               <div className="flex items-center justify-center sm:justify-start gap-2">
@@ -299,28 +322,40 @@ export default function DashboardPage() {
               </div>
               <div className="mt-2 flex items-baseline justify-center sm:justify-start gap-1.5">
                 <span className="text-2xl sm:text-3xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
-                  1.780
+                  {formatNumber(summary?.radialGauges?.calorieProgress?.consumedKcal || 0)}
                 </span>
-                <span className="text-xs font-semibold text-[var(--text-secondary)]">/ 2.588 kkal</span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                  / {formatNumber(summary?.radialGauges?.calorieProgress?.targetKcal || 2200)} kkal
+                </span>
               </div>
             </div>
 
             <div className="space-y-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-default)]/60 pt-2.5">
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-[var(--text-tertiary)]">Sisa Kalori:</span>
-                <span className="font-bold text-[#FF6B2C] font-mono">808 kkal</span>
+                <span className="font-bold text-[#FF6B2C] font-mono">
+                  {formatNumber(summary?.radialGauges?.calorieProgress?.deltaKcal || 0)} kkal
+                </span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-[var(--text-tertiary)]">Distribusi Makro:</span>
                 <span className="font-mono text-[11px] flex items-center gap-1.5">
-                  <span className="text-[#FF6B2C] font-bold">P: 142g</span>
-                  <span className="text-[#FFA726] font-bold">L: 52g</span>
-                  <span className="text-[#9B7CF6] font-bold">K: 185g</span>
+                  <span className="text-[#FF6B2C] font-bold">
+                    P: {summary?.heroMetrics?.protein?.consumedG || 0}g ({summary?.radialGauges?.calorieProgress?.macroSplit?.proteinPct || 30}%)
+                  </span>
+                  <span className="text-[#FFA726] font-bold">
+                    L: {summary?.heroMetrics?.fat?.consumedG || 0}g ({summary?.radialGauges?.calorieProgress?.macroSplit?.fatPct || 25}%)
+                  </span>
+                  <span className="text-[#9B7CF6] font-bold">
+                    K: {summary?.heroMetrics?.carbs?.consumedG || 0}g ({summary?.radialGauges?.calorieProgress?.macroSplit?.carbsPct || 45}%)
+                  </span>
                 </span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
-                <span className="text-[var(--text-tertiary)]">Target Defisit:</span>
-                <span className="font-semibold text-white font-mono">-200 kkal (TDEE: 2.788)</span>
+                <span className="text-[var(--text-tertiary)]">Target Kalori:</span>
+                <span className="font-semibold text-white font-mono">
+                  {formatNumber(summary?.radialGauges?.calorieProgress?.targetKcal || 2200)} kkal
+                </span>
               </div>
             </div>
           </div>
@@ -328,7 +363,6 @@ export default function DashboardPage() {
           {/* Right Circular Gauge */}
           <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              {/* Background Track Arc */}
               <circle
                 cx="50"
                 cy="50"
@@ -337,25 +371,22 @@ export default function DashboardPage() {
                 strokeWidth="10"
                 fill="transparent"
               />
-              {/* Active Orange Arc (%69 -> 238.7 * 0.69 = 164.7) */}
               <circle
                 cx="50"
                 cy="50"
                 r="38"
                 stroke="#FF6B2C"
                 strokeWidth="10"
-                strokeDasharray="238.7"
-                strokeDashoffset="74"
+                strokeDasharray={`${GAUGE_CIRCUMFERENCE}`}
+                strokeDashoffset={`${calOffset}`}
                 strokeLinecap="round"
                 fill="transparent"
                 className="transition-all duration-700 ease-out"
               />
             </svg>
-
-            {/* Center Percentage Badge */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
-                69%
+                {calPct}%
               </span>
               <span className="text-[9px] font-bold text-[#FF6B2C] uppercase tracking-wider">
                 Tercapai
@@ -366,7 +397,6 @@ export default function DashboardPage() {
 
         {/* Card 2: Circular Radial Gauge - Progres Hidrasi Air Minum */}
         <div className="p-5 rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-md flex flex-col sm:flex-row items-center justify-between gap-5">
-          {/* Left Info */}
           <div className="space-y-3 flex-1 text-center sm:text-left">
             <div>
               <div className="flex items-center justify-center sm:justify-start gap-2">
@@ -379,24 +409,30 @@ export default function DashboardPage() {
               </div>
               <div className="mt-2 flex items-baseline justify-center sm:justify-start gap-1.5">
                 <span className="text-2xl sm:text-3xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
-                  2.400
+                  {formatNumber(summary?.radialGauges?.hydrationProgress?.consumedMl || 0)}
                 </span>
-                <span className="text-xs font-semibold text-[var(--text-secondary)]">/ 3.500 ml</span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                  / {formatNumber(summary?.radialGauges?.hydrationProgress?.targetMl || 2500)} ml
+                </span>
               </div>
             </div>
 
             <div className="space-y-1 text-xs text-[var(--text-secondary)] border-t border-[var(--border-default)]/60 pt-2.5">
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-[var(--text-tertiary)]">Sisa Target Hidrasi:</span>
-                <span className="font-bold text-[#4CD6DE] font-mono">1.100 ml</span>
+                <span className="font-bold text-[#4CD6DE] font-mono">
+                  {formatNumber(summary?.radialGauges?.hydrationProgress?.remainingMl || 0)} ml
+                </span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-[var(--text-tertiary)]">Setara:</span>
-                <span className="font-semibold text-white font-mono">~3-4 Gelas Air</span>
+                <span className="font-semibold text-white font-mono">
+                  ~{Math.max(0, Math.ceil((summary?.radialGauges?.hydrationProgress?.remainingMl || 0) / 300))} Gelas Air
+                </span>
               </div>
               <div className="flex justify-between items-center text-[11px]">
                 <span className="text-[var(--text-tertiary)]">Standar Rumus:</span>
-                <span className="font-mono text-[var(--text-secondary)]">35 ml × 100 kg</span>
+                <span className="font-mono text-[var(--text-secondary)]">35 ml × Berat Badan (BR-010)</span>
               </div>
             </div>
           </div>
@@ -404,7 +440,6 @@ export default function DashboardPage() {
           {/* Right Circular Gauge */}
           <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              {/* Background Track Arc */}
               <circle
                 cx="50"
                 cy="50"
@@ -413,25 +448,22 @@ export default function DashboardPage() {
                 strokeWidth="10"
                 fill="transparent"
               />
-              {/* Active Cyan Arc (%68 -> 238.7 * 0.68 = 162.3) */}
               <circle
                 cx="50"
                 cy="50"
                 r="38"
                 stroke="#4CD6DE"
                 strokeWidth="10"
-                strokeDasharray="238.7"
-                strokeDashoffset="76.4"
+                strokeDasharray={`${GAUGE_CIRCUMFERENCE}`}
+                strokeDashoffset={`${hydroOffset}`}
                 strokeLinecap="round"
                 fill="transparent"
                 className="transition-all duration-700 ease-out"
               />
             </svg>
-
-            {/* Center Percentage Badge */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-xl font-extrabold font-[var(--font-display)] text-white tabular-nums">
-                68%
+                {hydroPct}%
               </span>
               <span className="text-[9px] font-bold text-[#4CD6DE] uppercase tracking-wider">
                 Terpenuhi
@@ -515,24 +547,29 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                    Total volume beban per kelompok otot (7 hari terakhir)
+                    Total volume beban per kelompok otot ({timeframe})
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Total volume akumulatif: <strong className="text-[var(--text-primary)]">13.280 kg</strong> · 56 Total Set Terselesaikan
+                    Total volume akumulatif:{' '}
+                    <strong className="text-[var(--text-primary)]">
+                      {formatNumber(summary?.heroMetrics?.volume?.totalKg || 0)} kg
+                    </strong>
                   </p>
                 </div>
                 <span className="text-[11px] text-[var(--color-moss-600)] font-semibold bg-[var(--color-moss-600)]/10 px-2 py-1 rounded border border-[var(--color-moss-600)]/30">
-                  Keseimbangan anterior/posterior: Optimal (52% / 48%)
+                  Data real dari riwayat sesi
                 </span>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-                {/* Bar Chart */}
                 <div className="lg:col-span-2 h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={muscleVolumeData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <BarChart
+                      data={summary?.charts?.volumeByMuscleGroup || []}
+                      margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                    >
                       <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
-                      <XAxis dataKey="muscle" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                      <XAxis dataKey="name" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
                       <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                       <Tooltip
                         cursor={{ fill: 'rgba(255, 255, 255, 0.04)', radius: 8 }}
@@ -545,12 +582,14 @@ export default function DashboardPage() {
                           boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
                         }}
                         labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
-                        itemStyle={{ color: '#FFFFFF', fontWeight: '600' }}
                         formatter={(v: unknown) => [`${formatNumber(v as number)} kg`, 'Volume Beban']}
                       />
-                      <Bar dataKey="volume" radius={[8, 8, 0, 0]}>
-                        {muscleVolumeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                      <Bar dataKey="volumeKg" radius={[8, 8, 0, 0]}>
+                        {(summary?.charts?.volumeByMuscleGroup || []).map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={MUSCLE_PALETTE[entry.muscle] || '#F05A28'}
+                          />
                         ))}
                       </Bar>
                     </BarChart>
@@ -562,18 +601,21 @@ export default function DashboardPage() {
                   <span className="text-xs font-bold text-[var(--text-tertiary)] block">
                     Distribusi persentase beban
                   </span>
-                  {muscleVolumeData.map((item) => (
+                  {(summary?.charts?.volumeByMuscleGroup || []).map((item) => (
                     <div key={item.muscle} className="space-y-1">
                       <div className="flex justify-between text-xs">
-                        <span className="text-[var(--text-secondary)] font-medium">{item.muscle}</span>
+                        <span className="text-[var(--text-secondary)] font-medium">{item.name}</span>
                         <span className="font-bold tabular-nums text-white">
-                          {formatNumber(item.volume)} kg ({item.percentage}%)
+                          {formatNumber(item.volumeKg)} kg ({item.pct}%)
                         </span>
                       </div>
                       <div className="h-1.5 w-full bg-[var(--bg-base)] rounded-full overflow-hidden border border-[var(--border-default)]/40">
                         <div
                           className="h-full rounded-full transition-all duration-300"
-                          style={{ width: `${item.percentage}%`, backgroundColor: item.fill }}
+                          style={{
+                            width: `${item.pct}%`,
+                            backgroundColor: MUSCLE_PALETTE[item.muscle] || '#F05A28',
+                          }}
                         />
                       </div>
                     </div>
@@ -583,7 +625,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* TAB 2: STRENGTH PROGRESSION & 1RM ESTIMATION (Activity Telemetry Curve Style) */}
+          {/* TAB 2: STRENGTH PROGRESSION & 1RM ESTIMATION */}
           {analyticsTab === 'STRENGTH' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
@@ -592,78 +634,43 @@ export default function DashboardPage() {
                     Tren estimasi 1RM (Epley formula: w × (1 + r/30))
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Progressive overload pada 4 gerakan utama selama 4 minggu program latihan.
+                    Progressive overload pada gerakan compound utama yang tercatat.
                   </p>
                 </div>
                 <span className="text-[11px] text-[var(--accent-primary)] font-semibold bg-[var(--accent-primary)]/10 px-2.5 py-1 rounded-full border border-[var(--accent-primary)]/30">
-                  Rata-rata kenaikan beban: +5.8% / bulan
+                  Dihitung otomatis per set latihan
                 </span>
               </div>
 
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={strengthProgressionData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="glowBench" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#FF6B2C" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#FF6B2C" stopOpacity="0.0" />
-                      </linearGradient>
-                      <linearGradient id="glowSquat" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4CD6DE" stopOpacity="0.2" />
-                        <stop offset="100%" stopColor="#4CD6DE" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
-                    <XAxis dataKey="week" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} domain={['dataMin - 5', 'dataMax + 10']} />
-                    <Tooltip
-                      cursor={{ stroke: '#FF6B2C', strokeDasharray: '3 3', strokeWidth: 1.5 }}
-                      contentStyle={{
-                        backgroundColor: '#1E2027',
-                        borderColor: '#2C303B',
-                        borderRadius: '14px',
-                        color: '#FFFFFF',
-                        fontSize: '12px',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                      }}
-                      labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
-                      formatter={(v: unknown, name: unknown) => [
-                        `${v} kg`,
-                        name === 'benchPress'
-                          ? 'Bench Press (1RM)'
-                          : name === 'squat'
-                          ? 'Squat (1RM)'
-                          : name === 'deadlift'
-                          ? 'Deadlift (1RM)'
-                          : 'Incline DB (1RM)',
-                      ]}
-                    />
-                    <Area type="monotone" dataKey="benchPress" stroke="#FF6B2C" strokeWidth={3} fill="url(#glowBench)" dot={{ r: 4, fill: '#FF6B2C', stroke: '#121316', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#FF6B2C', stroke: '#FFFFFF', strokeWidth: 2 }} />
-                    <Area type="monotone" dataKey="squat" stroke="#4CD6DE" strokeWidth={3} fill="url(#glowSquat)" dot={{ r: 4, fill: '#4CD6DE', stroke: '#121316', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#4CD6DE', stroke: '#FFFFFF', strokeWidth: 2 }} />
-                    <Line type="monotone" dataKey="deadlift" stroke="#FFA726" strokeWidth={2.5} dot={{ r: 4, fill: '#FFA726', stroke: '#121316', strokeWidth: 2 }} />
-                    <Line type="monotone" dataKey="inclineDb" stroke="#9B7CF6" strokeWidth={2.5} dot={{ r: 4, fill: '#9B7CF6', stroke: '#121316', strokeWidth: 2 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-center text-xs">
-                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
-                  <span className="text-[10px] text-[var(--text-tertiary)] block">Bench Press 1RM</span>
-                  <span className="text-sm font-bold text-[#FF6B2C] font-[var(--font-display)]">82.5 → 95.7 kg (+10%)</span>
+              {summary?.charts?.strengthProgression && summary.charts.strengthProgression.length > 0 ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-center text-xs">
+                    {summary.charts.strengthProgression.map((item) => (
+                      <div
+                        key={item.exerciseId}
+                        className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]"
+                      >
+                        <span className="text-[10px] text-[var(--text-tertiary)] block">
+                          {item.exerciseName}
+                        </span>
+                        <span className="text-sm font-bold text-[#FF6B2C] font-[var(--font-display)]">
+                          1RM: {item.current1RM} kg{' '}
+                          {item.deltaPct !== 0 && (
+                            <span className={item.deltaPct > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                              ({item.deltaPct > 0 ? '+' : ''}
+                              {item.deltaPct}%)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
-                  <span className="text-[10px] text-[var(--text-tertiary)] block">Squat 1RM</span>
-                  <span className="text-sm font-bold text-[#4CD6DE] font-[var(--font-display)]">110 → 128.3 kg (+15%)</span>
+              ) : (
+                <div className="p-8 text-center text-xs text-[var(--text-tertiary)]">
+                  Belum ada log gerakan compound (Bench Press, Squat, Deadlift, OHP) yang tercatat.
                 </div>
-                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
-                  <span className="text-[10px] text-[var(--text-tertiary)] block">Deadlift 1RM</span>
-                  <span className="text-sm font-bold text-[#FFA726] font-[var(--font-display)]">120 → 138.0 kg (+9%)</span>
-                </div>
-                <div className="p-3 rounded-[14px] bg-[var(--bg-base)] border border-[var(--border-default)]">
-                  <span className="text-[10px] text-[var(--text-tertiary)] block">Incline DB 1RM</span>
-                  <span className="text-sm font-bold text-[#9B7CF6] font-[var(--font-display)]">30 → 37.2 kg (+12%)</span>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -673,24 +680,27 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-default)]/60 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                    Korelasi asupan kalori harian vs tren penurunan berat badan
+                    Korelasi asupan kalori harian vs tren berat badan
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Target kalori terjadwal: <strong className="text-[var(--accent-secondary)]">2.588 kkal</strong> (Defisit 200 kkal terhadap TDEE 2.788 kkal).
+                    Target kalori harian:{' '}
+                    <strong className="text-[var(--accent-secondary)]">
+                      {summary?.radialGauges?.calorieProgress?.targetKcal || 2200} kkal
+                    </strong>
                   </p>
                 </div>
-                <span className="text-[11px] text-[#4CD6DE] font-semibold bg-[#4CD6DE]/10 px-2.5 py-1 rounded-full border border-[#4CD6DE]/30">
-                  Laju fat loss rata-rata: -0.28 kg / minggu
-                </span>
               </div>
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={weeklyCalorieData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <ComposedChart
+                    data={summary?.charts?.calorieVsWeight || []}
+                    margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
-                    <XAxis dataKey="day" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="cal" stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} domain={[1200, 3200]} />
-                    <YAxis yAxisId="wt" orientation="right" stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} domain={[103.5, 105.5]} />
+                    <XAxis dataKey="date" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="cal" stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="wt" orientation="right" stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip
                       cursor={{ fill: 'rgba(255, 255, 255, 0.04)', radius: 8 }}
                       contentStyle={{
@@ -703,9 +713,31 @@ export default function DashboardPage() {
                       }}
                       labelStyle={{ color: '#9AA0B0', fontWeight: 'bold', marginBottom: '4px' }}
                     />
-                    <ReferenceLine yAxisId="cal" y={2588} stroke="#FFA726" strokeDasharray="4 4" label={{ value: 'Target 2.588 kkal', fill: '#FFA726', fontSize: 10 }} />
-                    <Bar yAxisId="cal" dataKey="calories" fill="#FF6B2C" opacity={0.9} radius={[6, 6, 0, 0]} maxBarSize={24} name="Asupan Kalori (kkal)" />
-                    <Line yAxisId="wt" type="monotone" dataKey="weight" stroke="#4CD6DE" strokeWidth={3.5} dot={{ r: 4, fill: '#4CD6DE', stroke: '#121316', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#4CD6DE', stroke: '#FFFFFF', strokeWidth: 2 }} name="Berat Badan (kg)" />
+                    <ReferenceLine
+                      yAxisId="cal"
+                      y={summary?.radialGauges?.calorieProgress?.targetKcal || 2200}
+                      stroke="#FFA726"
+                      strokeDasharray="4 4"
+                    />
+                    <Bar
+                      yAxisId="cal"
+                      dataKey="calories"
+                      fill="#FF6B2C"
+                      opacity={0.9}
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={24}
+                      name="Asupan Kalori (kkal)"
+                    />
+                    <Line
+                      yAxisId="wt"
+                      type="monotone"
+                      dataKey="weightKg"
+                      stroke="#4CD6DE"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: '#4CD6DE', stroke: '#121316', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#4CD6DE', stroke: '#FFFFFF', strokeWidth: 2 }}
+                      name="Berat Badan (kg)"
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -721,19 +753,19 @@ export default function DashboardPage() {
                     Distribusi waktu latihan aktif vs istirahat (Rest)
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Evaluasi durasi set vs waktu istirahat antar-set untuk memastikan intensitas hipertrofi optimal.
+                    Evaluasi durasi set vs waktu istirahat antar-set untuk intensitas optimal.
                   </p>
                 </div>
-                <span className="text-[11px] text-[var(--accent-secondary)] font-semibold bg-[var(--accent-secondary)]/10 px-2.5 py-1 rounded-full border border-[var(--accent-secondary)]/30">
-                  Efisiensi rata-rata sesi: 56% Active Density
-                </span>
               </div>
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={workRestRatioData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <BarChart
+                    data={summary?.charts?.workRestRatio || []}
+                    margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="4 4" stroke="#2C303B" vertical={false} />
-                    <XAxis dataKey="session" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
+                    <XAxis dataKey="date" stroke="#646A7C" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="#646A7C" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip
                       cursor={{ fill: 'rgba(255, 255, 255, 0.04)', radius: 8 }}
@@ -752,7 +784,13 @@ export default function DashboardPage() {
                       ]}
                     />
                     <Bar dataKey="activeMin" stackId="a" fill="#4CD6DE" name="Waktu Aktif (min)" />
-                    <Bar dataKey="restMin" stackId="a" fill="#FF6B2C" radius={[6, 6, 0, 0]} name="Waktu Istirahat (min)" />
+                    <Bar
+                      dataKey="restMin"
+                      stackId="a"
+                      fill="#FF6B2C"
+                      radius={[6, 6, 0, 0]}
+                      name="Waktu Istirahat (min)"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -783,12 +821,17 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {muscleRecoveryStates.map((m) => (
-              <div key={m.name} className="p-3 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] space-y-1.5">
+            {(summary?.muscleRecovery || []).map((m) => (
+              <div
+                key={m.muscleGroupName}
+                className="p-3 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] space-y-1.5"
+              >
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-[var(--text-primary)]">{m.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[var(--text-tertiary)]">Dilatih {m.hoursAgo} jam lalu</span>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                      {m.hoursAgo < 500 ? `Dilatih ${m.hoursAgo} jam lalu` : 'Belum dilatih'}
+                    </span>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                         m.pct >= 90
@@ -824,11 +867,12 @@ export default function DashboardPage() {
                   Konsistensi latihan (heatmap 28 hari)
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  18 Sesi Latihan Selesai · 80% Kepatuhan Program (Target 4-5 sesi/minggu).
+                  {summary?.consistencyHeatmap?.completedSessions || 0} Sesi Latihan Selesai ·{' '}
+                  {summary?.consistencyHeatmap?.adherencePct || 0}% Kepatuhan Program.
                 </p>
               </div>
               <span className="text-[10px] text-[var(--color-moss-600)] font-bold bg-[var(--color-moss-600)]/10 px-2 py-0.5 rounded border border-[var(--color-moss-600)]/30">
-                Streak: 4 Minggu Aktif
+                Streak: {summary?.consistencyHeatmap?.activeStreakWeeks || 0} Minggu Aktif
               </span>
             </div>
 
@@ -845,10 +889,14 @@ export default function DashboardPage() {
               </div>
 
               <div className="grid grid-cols-7 gap-1.5">
-                {activityHeatmap.map((item) => (
+                {(summary?.consistencyHeatmap?.items || []).map((item) => (
                   <div
                     key={item.day}
-                    title={`${item.date}: ${item.hasWorkout ? `Sesi Latihan (${item.volume} kg)` : 'Hari Istirahat (Rest Day)'}`}
+                    title={`${item.date}: ${
+                      item.hasWorkout
+                        ? `Sesi Latihan (${item.volume} kg, ${item.durationMinutes} min)`
+                        : 'Hari Istirahat (Rest Day)'
+                    }`}
                     className={`h-8 rounded-[4px] border flex items-center justify-center text-[9px] font-mono transition-transform hover:scale-105 cursor-pointer ${
                       item.hasWorkout
                         ? 'bg-[var(--accent-primary)]/80 border-[var(--accent-primary)] text-white font-bold shadow-sm'
@@ -870,7 +918,7 @@ export default function DashboardPage() {
               <span className="text-[11px]">Sesi latihan gym</span>
             </div>
             <Link href="/workouts" className="text-[var(--accent-primary)] hover:underline font-semibold text-[11px]">
-              Lihat kalender lengkap →
+              Lihat riwayat lengkap →
             </Link>
           </div>
         </div>
@@ -879,10 +927,9 @@ export default function DashboardPage() {
       <Divider thick />
 
       {/* ============================================================ */}
-      {/* SECTION: PERSONAL RECORD (PR) HALL OF FAME & RECENT SESSIONS */}
+      {/* SECTION: PERSONAL RECORD (PR) & RECENT SESSIONS */}
       {/* ============================================================ */}
       <div className="my-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left 2 Cols: Workout Terakhir & PR Highlights */}
         <div className="lg:col-span-2 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <div>
@@ -890,7 +937,7 @@ export default function DashboardPage() {
                 Sesi latihan terkini & rekor baru (PR)
               </h2>
               <p className="text-xs text-[var(--text-secondary)]">
-                Riwayat sesi terakhir dan rekor angkatan terbaru yang terdeteksi.
+                Riwayat sesi terakhir dan rincian beban kerja yang tercatat.
               </p>
             </div>
             <Link
@@ -902,113 +949,93 @@ export default function DashboardPage() {
           </div>
 
           <div className="border border-[var(--border-default)] bg-[var(--bg-surface)] rounded-[6px] p-5 flex-1 flex flex-col justify-between space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <span className="text-xs font-semibold text-[var(--accent-secondary)]">
-                  Sesi terakhir · Kemarin, 08 Sep 2026 (18:30 WIB)
-                </span>
-                <h3 className="text-lg font-bold text-[var(--text-primary)]">
-                  Chest & Triceps Focus Session
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  4 Gerakan · 14 Total Set · 1 Personal Record (PR) Terdeteksi
-                </p>
-              </div>
+            {summary?.lastWorkoutSession ? (
+              <>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-[var(--accent-secondary)]">
+                      Sesi terakhir · {new Date(summary.lastWorkoutSession.completedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                    <h3 className="text-lg font-bold text-[var(--text-primary)]">
+                      {summary.lastWorkoutSession.name}
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      {summary.lastWorkoutSession.totalExercises} Gerakan · {summary.lastWorkoutSession.totalSets} Total Set
+                    </p>
+                  </div>
 
-              <div className="grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-[var(--border-default)] pt-3 md:pt-0 md:pl-6 text-xs">
-                <div>
-                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
-                    Total volume
-                  </span>
-                  <span className="text-base font-bold tabular-nums text-[var(--text-primary)]">
-                    1.680 kg
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
-                    Durasi
-                  </span>
-                  <span className="text-base font-bold tabular-nums text-[var(--text-primary)]">
-                    60 menit
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
-                    Rasio aktif
-                  </span>
-                  <span className="text-base font-bold tabular-nums text-[var(--color-moss-600)]">
-                    54%
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Sub PR Banner */}
-            <div className="p-3 rounded-[6px] bg-[var(--bg-base)] border border-[var(--accent-secondary)]/30 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-[var(--accent-secondary)]" />
-                <span className="text-[var(--text-primary)] font-semibold">
-                  Personal record baru terdeteksi: <strong>Barbell Bench Press (82.5 kg × 6 reps)</strong>
-                </span>
-              </div>
-              <PRBadge label="PR 1RM: 95.7 kg" />
-            </div>
-
-            {/* Rincian Gerakan Sesi Ini */}
-            <div className="pt-2 border-t border-[var(--border-default)]/60 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                  Rincian Gerakan Sesi Ini (4 Gerakan)
-                </span>
-                <span className="text-[10px] text-[var(--text-tertiary)]">
-                  Beban kerja & set terbaik
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                      <span>Barbell Bench Press</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] font-bold">PR</span>
+                  <div className="grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-[var(--border-default)] pt-3 md:pt-0 md:pl-6 text-xs">
+                    <div>
+                      <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
+                        Total volume
+                      </span>
+                      <span className="text-base font-bold tabular-nums text-[var(--text-primary)]">
+                        {formatNumber(summary.lastWorkoutSession.totalVolumeKg)} kg
+                      </span>
                     </div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">4 Set (82.5 kg × 6) · Dada</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold font-mono text-[var(--accent-secondary)]">1RM: 95.7 kg</span>
-                  </div>
-                </div>
-
-                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-[var(--text-primary)]">Incline Dumbbell Press</div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">3 Set (30.0 kg × 8) · Dada Atas</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold font-mono text-[var(--text-primary)]">1RM: 37.2 kg</span>
-                  </div>
-                </div>
-
-                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-[var(--text-primary)]">Cable Tricep Pushdown</div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">4 Set (35.0 kg × 10) · Triceps</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold font-mono text-[var(--text-primary)]">Vol: 420 kg</span>
+                    <div>
+                      <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
+                        Durasi
+                      </span>
+                      <span className="text-base font-bold tabular-nums text-[var(--text-primary)]">
+                        {summary.lastWorkoutSession.durationMinutes} menit
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[var(--text-tertiary)] font-bold block">
+                        Rasio aktif
+                      </span>
+                      <span className="text-base font-bold tabular-nums text-[var(--color-moss-600)]">
+                        {summary.lastWorkoutSession.activeRatioPct}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-[var(--text-primary)]">Cable Chest Fly</div>
-                    <div className="text-[10px] text-[var(--text-tertiary)]">3 Set (15.0 kg × 12) · Dada Isolasi</div>
+                {/* Rincian Gerakan Sesi Ini */}
+                <div className="pt-2 border-t border-[var(--border-default)]/60 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                      Rincian Gerakan ({summary.lastWorkoutSession.exercises.length} Gerakan)
+                    </span>
+                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                      Set terbaik & estimasi 1RM
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold font-mono text-[var(--text-primary)]">Vol: 360 kg</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {summary.lastWorkoutSession.exercises.map((ex, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="text-xs font-bold text-[var(--text-primary)]">
+                            {ex.exerciseName}
+                          </div>
+                          <div className="text-[10px] text-[var(--text-tertiary)]">
+                            {ex.totalSets} Set ({ex.topSet}) · {ex.muscleGroupName}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-bold font-mono text-[var(--accent-secondary)]">
+                            1RM: {ex.oneRepMaxEst} kg
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              </>
+            ) : (
+              <div className="p-8 text-center text-xs text-[var(--text-tertiary)] space-y-2">
+                <p>Belum ada riwayat sesi latihan yang tercatat.</p>
+                <Link href="/workouts/active">
+                  <Button variant="primary" size="sm">
+                    Mulai Sesi Latihan Pertama
+                  </Button>
+                </Link>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -1020,22 +1047,34 @@ export default function DashboardPage() {
                 <Award className="w-4 h-4 text-[var(--accent-secondary)]" />
                 Papan rekor pribadi (PR)
               </h3>
-              <span className="text-[10px] text-[var(--accent-secondary)] font-bold">4 Rekor aktif</span>
+              <span className="text-[10px] text-[var(--accent-secondary)] font-bold">
+                {summary?.recentPRs?.length || 0} Rekor aktif
+              </span>
             </div>
 
             <div className="space-y-2">
-              {recentPRs.map((pr) => (
-                <div key={pr.exercise} className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] space-y-1">
+              {(summary?.recentPRs || []).map((pr) => (
+                <div
+                  key={pr.exerciseId}
+                  className="p-2.5 rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-default)] space-y-1"
+                >
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-[var(--text-primary)]">{pr.exercise}</span>
                     <span className="text-[10px] text-[var(--text-tertiary)]">{pr.date}</span>
                   </div>
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="text-[var(--text-secondary)]">{pr.metric}</span>
-                    <span className="font-bold font-mono text-[var(--accent-secondary)]">Est 1RM: {pr.e1rm}</span>
+                    <span className="font-bold font-mono text-[var(--accent-secondary)]">
+                      Est 1RM: {pr.e1rm}
+                    </span>
                   </div>
                 </div>
               ))}
+              {(!summary?.recentPRs || summary.recentPRs.length === 0) && (
+                <p className="text-xs text-[var(--text-tertiary)] text-center py-4">
+                  Belum ada rekor PR tersimpan. Selesaikan set dengan beban maksimal untuk memecahkan rekor baru.
+                </p>
+              )}
             </div>
           </div>
 
@@ -1061,26 +1100,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-          <InsightCard
-            type="INFO"
-            title="Progres Komposisi Tubuh Terpantau"
-            description="Estimasi Body Fat turun 1.0% dalam evaluasi terakhir dengan massa otot stabil (35.8 kg). Pertahankan asupan protein harian di kisaran 208g."
-          />
-          <InsightCard
-            type="ACTION"
-            title="Progressive Overload Terdeteksi pada Bench Press"
-            description="Beban kerja naik dari 75kg ke 82.5kg (+10.0%) pada rep range yang sama. Waktu istirahat rata-rata optimal (90 detik)."
-          />
-          <InsightCard
-            type="INFO"
-            title="Kepatuhan Target Hidrasi & Kalori Optimal"
-            description="Asupan kalori 7 hari konsisten berada di rentang defisit sehat (-200 s/d -300 kkal). Hidrasi harian rata-rata mencapai 3.4 liter."
-          />
-          <InsightCard
-            type="WARNING"
-            title="Jadwal Latihan Kaki (Leg Day) Mendatang"
-            description="Kelompok otot kaki telah mencapai 60% pemulihan dan akan siap 100% dalam 24 jam ke depan untuk sesi latihan lower body."
-          />
+          {insightsToRender.map((insight) => (
+            <InsightCard
+              key={insight.id}
+              type={insight.type}
+              title={insight.title}
+              description={insight.description}
+            />
+          ))}
         </div>
       </section>
 
@@ -1100,31 +1127,27 @@ export default function DashboardPage() {
         </div>
 
         <div className="p-4 border border-[var(--border-default)] bg-[var(--bg-surface)]/40 rounded-[6px]">
-          <TimelineEntry
-            time="18:45"
-            type="DRINK"
-            title="Konsumsi Air Mineral 800ml Saat Workout"
-            subtitle="800 ml air hidrasi"
-          />
-          <TimelineEntry
-            time="18:30"
-            type="WORKOUT"
-            title="Sesi Latihan: Barbell Bench Press & Treadmill Incline"
-            subtitle="Volume: 1.680 kg · Durasi: 60 menit · 1 PR Terdeteksi"
-          />
-          <TimelineEntry
-            time="13:15"
-            type="FOOD"
-            title="Makan Siang: Nasi Merah, Dada Ayam Panggang & Brokoli"
-            subtitle="680 kkal · Protein: 58g · Lemak: 14g · Karbo: 72g"
-          />
-          <TimelineEntry
-            time="07:30"
-            type="DRINK"
-            title="Air Mineral Pagi (Gelas Besar)"
-            subtitle="600 ml air hidrasi"
-            isLast
-          />
+          {isTimelineLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : timelineToRender.length === 0 ? (
+            <div className="py-6 text-center text-xs text-[var(--text-tertiary)]">
+              Belum ada aktivitas yang dicatat hari ini. Mulai dengan mencatat sesi latihan, makanan, atau hidrasi.
+            </div>
+          ) : (
+            timelineToRender.map((entry, idx) => (
+              <TimelineEntry
+                key={entry.id}
+                time={entry.time}
+                type={entry.type}
+                title={entry.title}
+                subtitle={entry.subtitle}
+                isLast={idx === timelineToRender.length - 1}
+              />
+            ))
+          )}
         </div>
       </section>
     </AppShell>
