@@ -140,7 +140,20 @@ export const workoutService = {
    * Update set (weight, reps, isCompleted)
    */
   updateSet: async (setId: string, data: Partial<WorkoutSetItem>): Promise<WorkoutSetItem> => {
-    const res = await apiClient.patch<any>(`/workouts/sets/${setId}`, data);
+    const payload: Record<string, any> = {};
+    if (data.weightKg !== undefined) payload.weightKg = Number(data.weightKg) || 0;
+    if (data.reps !== undefined) payload.reps = Number(data.reps) || 0;
+    if (data.durationSeconds !== undefined) payload.durationSeconds = Number(data.durationSeconds) || 0;
+    if (data.restSeconds !== undefined) payload.restSeconds = Number(data.restSeconds) || 0;
+    if (data.inclinePct !== undefined) payload.inclinePct = data.inclinePct;
+    if (data.speedKmh !== undefined) payload.speedKmh = data.speedKmh;
+    if (data.distanceKm !== undefined) payload.distanceKm = data.distanceKm;
+    if (data.caloriesBurned !== undefined) payload.caloriesBurned = data.caloriesBurned;
+    if (data.isCompleted !== undefined) payload.isCompleted = data.isCompleted;
+    if (data.rpe !== undefined) payload.rpe = data.rpe;
+    if (data.completedAt !== undefined) payload.completedAt = data.completedAt;
+
+    const res = await apiClient.patch<any>(`/workouts/sets/${setId}`, payload);
     return res?.data?.data || res?.data || res;
   },
 

@@ -105,7 +105,7 @@ export default function ActiveWorkoutPage() {
   useEffect(() => {
     syncWithBackendActiveSession();
     workoutService.getRoutines().then((data) => setRoutines(data)).catch(() => {});
-  }, [syncWithBackendActiveSession]);
+  }, []);
 
   // Live stopwatch interval (Total di Gym, Waktu Olahraga, Total Istirahat, & Cardio Live Timers)
   useEffect(() => {

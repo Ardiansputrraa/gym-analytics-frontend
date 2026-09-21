@@ -43,7 +43,7 @@ export function ActiveWorkoutFloatingBanner() {
   // Sync on mount
   useEffect(() => {
     syncWithBackendActiveSession();
-  }, [syncWithBackendActiveSession]);
+  }, []);
 
   // Live timer ticks & rest completion alert
   useEffect(() => {
